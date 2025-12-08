@@ -1,0 +1,26 @@
+const attractionsList = [
+  { nom: "Tchou Tchou Aventure", image: "tchou_tchou_aventure.jpg" },
+  { nom: "Galopant", image: "galopant.jpg" },
+  { nom: "Melody Road", image: "melody_road.jpg" },
+  { nom: "Mission Apollo", image: "mission_apollo.jpg" },
+  { nom: "Crazy Bus", image: "crazy_bus.jpg" },
+  { nom: "Coccinelle", image: "coccinelle.jpg" },
+  { nom: "Mine de Thor", image: "mine_de_thor.jpg" },
+  { nom: "Midgar", image: "midgar.jpg" },
+  { nom: "Drakkar", image: "drakkar.jpg" },
+  { nom: "Île aux Pirates", image: "ile_aux_pirates.webp" },
+  { nom: "Express Tour", image: "express_tour.jpg" },
+  { nom: "Bubble Up", image: "bubble_up.jpg" },
+  { nom: "Chaises Volantes", image: "chaises_volantes.jpg" },
+  { nom: "Aquachutes", image: "aquachutes.jpg" },
+  { nom: "Boomerang", image: "boomerang.jpg" },
+  { nom: "Tapis Magique", image: "tapis_magique.jpg" },
+  { nom: "Tea Cup", image: "tea_cup.jpg" },
+  { nom: "Bateau Pirate", image: "bateau_pirate.jpg" },
+  { nom: "Radja River", image: "radja_river.jpg" },
+  { nom: "Holociné", image: "holociné.jpg" },
+  { nom: "Splash Battle", image: "splash_battle.jpeg" },
+  { nom: "Water Place", image: "water_place.jpg" },
+];
+
+export default attractionsList;
