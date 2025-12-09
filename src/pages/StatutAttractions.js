@@ -9,16 +9,14 @@ export default function StatutAttractions() {
   const [statuses, setStatuses] = useState({});
   const [validatedToday, setValidatedToday] = useState(new Set());
 
-  // Normalisation simple
   const clean = (s) => String(s || "").trim().toLowerCase();
 
-  // Compare AAAA/MM/JJ
   const isSameDay = (a, b) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
-  // 1) Listener PC Sécurité
+  // 🔥 1) Listener temps réel PC Sécurité
   useEffect(() => {
     return onSnapshot(collection(db, "attractionStatus"), (snap) => {
       const out = {};
@@ -27,42 +25,69 @@ export default function StatutAttractions() {
     });
   }, []);
 
-  // 2) Listener des checklists journalières
+  // 🔥 2) Listener temps réel CHECKLISTS + RESET automatique Firestore
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "checklists"), (snap) => {
-      const set = new Set();
+    const unsub = onSnapshot(collection(db, "checklists"), async (snap) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
+      const newSet = new Set();
+
       snap.forEach((docSnap) => {
         const d = docSnap.data();
-
         if (d.type !== "journaliere") return;
         if (!d.timestamp) return;
 
-        const ts =
-          d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp);
+        const ts = d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp);
         ts.setHours(0, 0, 0, 0);
 
-        if (!isSameDay(ts, today)) return;
-
-        set.add(clean(d.attraction));
+        if (isSameDay(ts, today)) newSet.add(clean(d.attraction));
       });
 
-      setValidatedToday(set);
+      // 🔥 CHECKLIST SUPPRIMÉE → reset du statut (fermé + manual false)
+      for (const key of validatedToday) {
+        if (!newSet.has(key)) {
+          await setDoc(
+            doc(db, "attractionStatus", key),
+            {
+              status: "fermee",
+              manual: false,
+              updated_at: new Date()
+            },
+            { merge: true }
+          );
+        }
+      }
+
+      // 🔥 CHECKLIST AJOUTÉE → statut = ouverte (reset mémoire)
+      for (const key of newSet) {
+        if (!validatedToday.has(key)) {
+          await setDoc(
+            doc(db, "attractionStatus", key),
+            {
+              status: "ouverte",
+              manual: false,
+              updated_at: new Date()
+            },
+            { merge: true }
+          );
+        }
+      }
+
+      setValidatedToday(newSet); // ⚡ Mise à jour immédiate de l'UI
     });
 
     return () => unsub();
-  }, []);
+  }, []); // ← très important : pas de dépendance
 
-  // 3) Mise à jour depuis PC Sécurité
+  // 🔥 3) Mise à jour manuelle PC Sécurité
   const updateStatus = async (nom, statut) => {
     await setDoc(
       doc(db, "attractionStatus", nom),
       {
-        status: statut, // 🔥 Firestore stocke uniquement : fermee / ouverte / panne / evacuation
+        status: statut,
         manual: true,
-        updated_at: new Date(),
+        updated_at: new Date()
       },
       { merge: true }
     );
@@ -70,15 +95,13 @@ export default function StatutAttractions() {
 
   const handleLogout = async () => await signOut(auth);
 
-  // Couleurs des statuts
   const colors = {
     fermee: "#ffb5b5",
     ouverte: "#b6ffb6",
     panne: "#fff3b0",
-    evacuation: "#c3d9ff",
+    evacuation: "#c3d9ff"
   };
 
-  // Traduction affichage humain
   const translateStatus = (s) => {
     if (s === "panne") return "En panne";
     if (s === "evacuation") return "Evacuation en cours...";
@@ -98,7 +121,7 @@ export default function StatutAttractions() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          position: "relative",
+          position: "relative"
         }}
       >
         <button
@@ -111,17 +134,13 @@ export default function StatutAttractions() {
             padding: "8px 18px",
             borderRadius: 10,
             color: "white",
-            fontWeight: "bold",
+            fontWeight: "bold"
           }}
         >
           ← Retour Panel
         </button>
 
-        <img
-          src="/logo_walygator_maintenance.png"
-          alt="logo"
-          style={{ height: 80 }}
-        />
+        <img src="/logo_walygator_maintenance.png" style={{ height: 80 }} alt="logo" />
 
         <button
           onClick={handleLogout}
@@ -133,17 +152,11 @@ export default function StatutAttractions() {
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: 8
           }}
         >
-          <img
-            src="/logout_door.png"
-            alt="logout"
-            style={{ height: 32, filter: "invert(1)" }}
-          />
-          <span style={{ color: "white", fontWeight: "bold" }}>
-            Déconnexion
-          </span>
+          <img src="/logout_door.png" style={{ height: 32, filter: "invert(1)" }} alt="" />
+          <span style={{ color: "white", fontWeight: "bold" }}>Déconnexion</span>
         </button>
       </div>
 
@@ -155,19 +168,19 @@ export default function StatutAttractions() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-            gap: 25,
+            gap: 25
           }}
         >
           {attractionsList.map((a) => {
             const key = clean(a.nom);
 
-            const record = statuses[a.nom] || {};
+            const record = statuses[key] || {};
             const hasChecklist = validatedToday.has(key);
             const forced = record.manual === true;
 
             let displayStatus = record.status || "fermee";
 
-            // 🔥 SI CHECKLIST : OUVERTE sauf si PC force autre
+            // 🔥 Checklist = OUVERT sauf si PC force autre
             if (hasChecklist) {
               if (forced && record.status !== "ouverte") {
                 displayStatus = record.status;
@@ -184,11 +197,9 @@ export default function StatutAttractions() {
                 style={{
                   padding: 15,
                   borderRadius: 14,
-                  background: isDisabled
-                    ? "#d9d9d9"
-                    : colors[displayStatus],
+                  background: isDisabled ? "#d9d9d9" : colors[displayStatus],
                   opacity: isDisabled ? 0.5 : 1,
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)"
                 }}
               >
                 <img
@@ -198,17 +209,11 @@ export default function StatutAttractions() {
                     width: "100%",
                     height: 150,
                     objectFit: "cover",
-                    borderRadius: 10,
+                    borderRadius: 10
                   }}
                 />
 
-                <p
-                  style={{
-                    marginTop: 10,
-                    fontWeight: "bold",
-                    textAlign: "center",
-                  }}
-                >
+                <p style={{ marginTop: 10, fontWeight: "bold", textAlign: "center" }}>
                   {a.nom}
                 </p>
 
@@ -224,64 +229,60 @@ export default function StatutAttractions() {
                     display: "flex",
                     justifyContent: "space-between",
                     marginTop: 12,
-                    pointerEvents: isDisabled ? "none" : "auto",
+                    pointerEvents: isDisabled ? "none" : "auto"
                   }}
                 >
                   <button
-                    onClick={() => updateStatus(a.nom, "fermee")}
+                    onClick={() => updateStatus(key, "fermee")}
                     style={{
                       background: "#ff4d4d",
                       padding: "6px 10px",
                       color: "white",
                       borderRadius: 6,
                       border: "none",
-                      fontWeight: "bold",
-                      cursor: isDisabled ? "not-allowed" : "pointer",
+                      fontWeight: "bold"
                     }}
                   >
                     Fermée
                   </button>
 
                   <button
-                    onClick={() => updateStatus(a.nom, "ouverte")}
+                    onClick={() => updateStatus(key, "ouverte")}
                     style={{
                       background: "#34c759",
                       padding: "6px 10px",
                       color: "white",
                       borderRadius: 6,
                       border: "none",
-                      fontWeight: "bold",
-                      cursor: isDisabled ? "not-allowed" : "pointer",
+                      fontWeight: "bold"
                     }}
                   >
                     Ouverte
                   </button>
 
                   <button
-                    onClick={() => updateStatus(a.nom, "panne")}
+                    onClick={() => updateStatus(key, "panne")}
                     style={{
                       background: "#f2c94c",
                       padding: "6px 10px",
                       color: "black",
                       borderRadius: 6,
                       border: "none",
-                      fontWeight: "bold",
-                      cursor: isDisabled ? "not-allowed" : "pointer",
+                      fontWeight: "bold"
                     }}
                   >
                     En panne
                   </button>
 
                   <button
-                    onClick={() => updateStatus(a.nom, "evacuation")}
+                    onClick={() => updateStatus(key, "evacuation")}
                     style={{
                       background: "#4c88ff",
                       padding: "6px 10px",
                       color: "white",
                       borderRadius: 6,
                       border: "none",
-                      fontWeight: "bold",
-                      cursor: isDisabled ? "not-allowed" : "pointer",
+                      fontWeight: "bold"
                     }}
                   >
                     Évac

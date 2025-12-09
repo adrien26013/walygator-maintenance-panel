@@ -10,14 +10,23 @@ export default function GlobalView({ selectedDate }) {
   const [validatedAttractions, setValidatedAttractions] = useState([]);
   const [securityStatus, setSecurityStatus] = useState({});
 
-  const cleanName = (s) => String(s || "").trim().toLowerCase();
+  const clean = (s) => String(s || "").trim().toLowerCase();
 
   const isSameDay = (a, b) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
-  // 🔥 Écoute temps réel PC SÉCURITÉ
+  // 🔥 Traduction affichage humain
+  const translateStatus = (s) => {
+    if (s === "panne") return "En panne";
+    if (s === "evacuation") return "Evacuation en cours...";
+    if (s === "ouverte") return "Ouverte";
+    if (s === "fermee") return "Fermée";
+    return s;
+  };
+
+  // 🔥 Listener PC Sécurité
   useEffect(() => {
     return onSnapshot(collection(db, "attractionStatus"), (snap) => {
       const map = {};
@@ -26,39 +35,49 @@ export default function GlobalView({ selectedDate }) {
     });
   }, []);
 
-  // 🔥 Met la date sélectionnée
+  // 🔥 Mise à jour date affichée
   useEffect(() => {
     if (!selectedDate || !selectedDate.raw) return;
 
     const d = new Date(selectedDate.raw);
     d.setHours(0, 0, 0, 0);
 
-    const jours = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
-    const mois = ["janvier","février","mars","avril","mai","juin","juillet","août",
-                  "septembre","octobre","novembre","décembre"];
+    const jours = [
+      "dimanche", "lundi", "mardi", "mercredi",
+      "jeudi", "vendredi", "samedi"
+    ];
+
+    const mois = [
+      "janvier","février","mars","avril","mai","juin",
+      "juillet","août","septembre","octobre","novembre","décembre"
+    ];
 
     setEffectiveDate({
       raw: d,
-      label_complet: `${jours[d.getDay()]} ${String(d.getDate()).padStart(2,"0")} ${mois[d.getMonth()]} ${d.getFullYear()}`,
+      label_complet: `${jours[d.getDay()]} ${String(d.getDate()).padStart(2,"0")} ${
+        mois[d.getMonth()]
+      } ${d.getFullYear()}`
     });
-  }, [selectedDate]); // ❗ PAS DE setSelectedDateGlobal ICI = FINI LA BOUCLE INFINIE
+  }, [selectedDate]);
 
-  // 🔥 Écoute temps réel CHECKLISTS journalières
+  // 🔥 Écoute temps réel des checklists journalières
   useEffect(() => {
     if (!effectiveDate) return;
 
     return onSnapshot(collection(db, "checklists"), (snap) => {
       const validated = new Set();
 
-      snap.forEach((doc) => {
-        const d = doc.data();
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
         if (d.type !== "journaliere") return;
         if (!d.timestamp) return;
 
         const ts = d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp);
+        ts.setHours(0, 0, 0, 0);
+
         if (!isSameDay(ts, effectiveDate.raw)) return;
 
-        validated.add(cleanName(d.attraction));
+        validated.add(clean(d.attraction));
       });
 
       setValidatedAttractions([...validated]);
@@ -71,14 +90,12 @@ export default function GlobalView({ selectedDate }) {
     fermee: "#ffb5b5",
     panne: "#fff3b0",
     evacuation: "#c3d9ff",
-    ouverte: "#d4ffd4",
+    ouverte: "#d4ffd4"
   };
 
-  // --------------------------------------------------------
-  // 🔥 UI
-  // --------------------------------------------------------
   return (
     <div style={{ padding: 0 }}>
+
       {/* BANNIÈRE */}
       <div
         style={{
@@ -134,15 +151,15 @@ export default function GlobalView({ selectedDate }) {
           Journée du : <strong>{effectiveDate?.label_complet}</strong>
         </p>
 
-        {/* 🔥 LÉGENDE */}
+        {/* LÉGENDE */}
         <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
           <span style={{ padding: "6px 12px", background: "#ffb5b5", borderRadius: 6 }}>Fermée</span>
           <span style={{ padding: "6px 12px", background: "#b6ffb6", borderRadius: 6 }}>Ouverte</span>
           <span style={{ padding: "6px 12px", background: "#fff3b0", borderRadius: 6 }}>En panne</span>
-          <span style={{ padding: "6px 12px", background: "#c3d9ff", borderRadius: 6 }}>Évacuation</span>
+          <span style={{ padding: "6px 12px", background: "#c3d9ff", borderRadius: 6 }}>Evacuation en cours...</span>
         </div>
 
-        {/* GRILLE ATTRACTIONS */}
+        {/* GRILLE */}
         <div
           style={{
             display: "grid",
@@ -151,18 +168,23 @@ export default function GlobalView({ selectedDate }) {
           }}
         >
           {attractionsList.map((a) => {
-            const key = cleanName(a.nom);
+            const key = clean(a.nom);
             const hasChecklist = validatedAttractions.includes(key);
 
-            const s = securityStatus[a.nom] || securityStatus[key] || {};
+            const s = securityStatus[key] || {};
             const pcStatus = s.status || "fermee";
             const manual = s.manual === true;
 
             let final;
-            if (manual && pcStatus !== "ouverte") final = pcStatus;
-            else final = hasChecklist ? "ouverte" : "fermee";
+            if (!hasChecklist) {
+              final = "fermee";
+            } else {
+              if (manual && pcStatus !== "ouverte") final = pcStatus;
+              else final = "ouverte";
+            }
 
             const isDisabled = !hasChecklist;
+
             const bg =
               final === "ouverte" && hasChecklist ? "#9aff9a" : colors[final];
 
@@ -170,7 +192,7 @@ export default function GlobalView({ selectedDate }) {
               <div
                 key={a.nom}
                 style={{
-                  background: bg,
+                  background: isDisabled ? "#d9d9d9" : bg, // 🔥 VRAI GRIS comme PC Sécurité
                   borderRadius: 14,
                   padding: 12,
                   height: 230,
@@ -193,15 +215,16 @@ export default function GlobalView({ selectedDate }) {
 
                 <p style={{ marginTop: 10, fontWeight: "bold" }}>{a.nom}</p>
 
-                <p style={{ fontSize: 14, marginTop: 4 }}>
+                <p style={{ marginTop: 4 }}>
                   {isDisabled
                     ? "En attente de checklist…"
-                    : `Statut : ${final}`}
+                    : `Statut : ${translateStatus(final)}`}
                 </p>
               </div>
             );
           })}
         </div>
+
       </div>
     </div>
   );
