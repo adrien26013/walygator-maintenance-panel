@@ -21,6 +21,7 @@ const attractionsList = [
   { nom: "Holociné", image: "holociné.jpg" },
   { nom: "Splash Battle", image: "splash_battle.jpeg" },
   { nom: "Water Place", image: "water_place.jpg" },
+  { nom: "Dark Tower", image: "dark_tower.jpg" },
 ];
 
 export default attractionsList;

@@ -1,6 +1,6 @@
 // src/pages/GlobalView.js
 import React, { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import attractionsList from "../data/attractionsList";
@@ -8,242 +8,208 @@ import attractionsList from "../data/attractionsList";
 export default function GlobalView({ selectedDate, setSelectedDateGlobal }) {
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [validatedAttractions, setValidatedAttractions] = useState([]);
+  const [securityStatus, setSecurityStatus] = useState({});
 
-  // -------------------------------------------------------
-  // 🧱 Utilitaire : construire l'objet date comme dans Dashboard
-  // -------------------------------------------------------
-  const buildDateObj = (baseDate) => {
-    const d = new Date(baseDate);
+  const clean = (s) => String(s || "").trim().toLowerCase();
+
+  const isSameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  // ---------------------------------------
+  // 🔥 Normalisation des statuts FR & EN
+  // ---------------------------------------
+  const normalizeStatus = (raw) => {
+    if (!raw) return "fermee";
+
+    const s = raw.toLowerCase().trim();
+
+    if (s.includes("panne")) return "panne";
+    if (s.includes("evac")) return "evacuation";
+    if (s.includes("ouv")) return "ouverte";
+    if (s.includes("ferm")) return "fermee";
+
+    return "fermee";
+  };
+
+  const labels = {
+    fermee: "Fermée",
+    ouverte: "Ouverte",
+    panne: "En panne",
+    evacuation: "Evacuation en cours..."
+  };
+
+  const colors = {
+    fermee: "#ffb5b5",
+    ouverte: "#d4ffd4",
+    panne: "#fff3b0",
+    evacuation: "#c3d9ff"
+  };
+
+  // 🔥 Listener PC Sécurité
+  useEffect(() => {
+    return onSnapshot(collection(db, "attractionStatus"), (snap) => {
+      const out = {};
+      snap.forEach((d) => out[d.id] = d.data());
+      setSecurityStatus(out);
+    });
+  }, []);
+
+  // 🔥 Gestion de la date reçue
+  useEffect(() => {
+    if (!selectedDate || !selectedDate.raw) return;
+
+    const d = new Date(selectedDate.raw);
     d.setHours(0, 0, 0, 0);
 
-    const jours = [
-      "dimanche", "lundi", "mardi",
-      "mercredi", "jeudi", "vendredi", "samedi"
-    ];
-    const mois = [
-      "janvier", "février", "mars", "avril", "mai", "juin",
-      "juillet", "août", "septembre", "octobre", "novembre", "décembre"
-    ];
+    const jours = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+    const mois = ["janvier","février","mars","avril","mai","juin",
+                  "juillet","août","septembre","octobre","novembre","décembre"];
 
-    const jourNom = jours[d.getDay()];
-    const jourNum = String(d.getDate()).padStart(2, "0");
-    const moisNom = mois[d.getMonth()];
-    const annee = d.getFullYear();
-
-    return {
+    const obj = {
       raw: d,
-      label: d.toLocaleDateString("fr-FR"),
-      label_complet: `${jourNom} ${jourNum} ${moisNom} ${annee}`,
+      label_complet:
+        `${jours[d.getDay()]} ${String(d.getDate()).padStart(2,"0")} ${
+          mois[d.getMonth()]
+        } ${d.getFullYear()}`
     };
-  };
 
-  // -------------------------------------------------------
-  // 🔥 Choisir la date que la vue globale doit utiliser
-  //    - si le Dashboard en a donnée une → on l'utilise
-  //    - sinon → on se cale sur aujourd'hui (jour J)
-  // -------------------------------------------------------
+    setEffectiveDate(obj);
+    setSelectedDateGlobal?.({ raw: d, ...obj });
+  }, [selectedDate]);
+
+  // 🔥 Listener checklists journalières
   useEffect(() => {
-    if (selectedDate && selectedDate.raw) {
-      setEffectiveDate(selectedDate);
-    } else {
-      const todayObj = buildDateObj(new Date());
-      setEffectiveDate(todayObj);
-      if (setSelectedDateGlobal) setSelectedDateGlobal(todayObj);
-    }
-  }, [selectedDate, setSelectedDateGlobal]);
+    if (!effectiveDate) return;
 
-  // -------------------------------------------------------
-  // 🔥 Abonnement Firestore EN DIRECT
-  //    On écoute TOUTES les journalières,
-  //    puis on filtre en JS pour ne garder que celles
-  //    du même jour que "effectiveDate".
-  // -------------------------------------------------------
-  useEffect(() => {
-    if (!effectiveDate || !effectiveDate.raw) return;
+    return onSnapshot(collection(db, "checklists"), (snap) => {
+      const set = new Set();
 
-    const q = query(
-      collection(db, "checklists"),
-      where("type", "==", "journaliere")
-    );
+      snap.forEach((doc) => {
+        const d = doc.data();
+        if (d.type !== "journaliere") return;
+        if (!d.timestamp) return;
 
-    const unsub = onSnapshot(q, (snap) => {
-      const doneForDay = [];
+        const ts = d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp);
 
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const attractionName = data.attraction || "—";
+        if (!isSameDay(ts, effectiveDate.raw)) return;
 
-        const ts = data.timestamp;
-        if (!ts) return;
-
-        const t = ts.toDate ? ts.toDate() : new Date(ts);
-
-        const sameDay =
-          t.getFullYear() === effectiveDate.raw.getFullYear() &&
-          t.getMonth() === effectiveDate.raw.getMonth() &&
-          t.getDate() === effectiveDate.raw.getDate();
-
-        if (sameDay) {
-          doneForDay.push(attractionName);
-        }
+        set.add(clean(d.attraction));
       });
 
-      setValidatedAttractions(doneForDay);
+      setValidatedAttractions([...set]);
     });
-
-    return () => unsub();
   }, [effectiveDate]);
 
-  // -------------------------------------------------------
-  // 🔐 Déconnexion
-  // -------------------------------------------------------
-  const handleLogout = async () => {
-    await signOut(auth);
-  };
+  const handleLogout = async () => await signOut(auth);
 
-  // -------------------------------------------------------
-  // 🖼️ Rendu
-  // -------------------------------------------------------
   return (
     <div style={{ padding: 0 }}>
-      {/* BANNIÈRE VERTE WALYGATOR */}
+      
+      {/* BANNIÈRE */}
       <div
         style={{
-          width: "100%",
-          height: 95,
-          backgroundColor: "#235630",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
+          width: "100%", height: 95, backgroundColor: "#235630",
+          display: "flex", justifyContent: "center",
+          alignItems: "center", position: "relative"
         }}
       >
-        {/* ← Retour Panel */}
         <button
           onClick={() => (window.location.href = "/")}
           style={{
-            position: "absolute",
-            left: 20,
-            backgroundColor: "#2f6f3a",
-            border: "3px solid #f5c400",
-            padding: "8px 18px",
-            borderRadius: 10,
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            boxShadow: "0 3px 0 #b48d00",
-            cursor: "pointer",
-            transition: "0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "scale(1.05)";
-            e.currentTarget.style.backgroundColor = "#398845";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.backgroundColor = "#2f6f3a";
+            position: "absolute", left: 20,
+            backgroundColor: "#2f6f3a", border: "3px solid #f5c400",
+            padding: "8px 18px", borderRadius: 10,
+            color: "white", fontWeight: "bold"
           }}
         >
           ← Retour Panel
         </button>
 
-        {/* Logo */}
-        <img
-          src="/logo_walygator_maintenance.png"
-          alt="logo"
-          style={{ height: 80 }}
-        />
+        <img src="/logo_walygator_maintenance.png" alt="" style={{ height: 80 }} />
 
-        {/* Déconnexion */}
         <button
           onClick={handleLogout}
           style={{
-            position: "absolute",
-            right: 20,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
+            position: "absolute", right: 20,
+            background: "transparent", border: "none",
+            cursor: "pointer", display: "flex", gap: 8, alignItems: "center"
           }}
         >
-          <img
-            src="/logout_door.png"
-            alt="logout"
-            style={{ height: 32, filter: "invert(1)" }}
-          />
-          <span style={{ color: "white", fontSize: 16, fontWeight: "bold" }}>
-            Déconnexion
-          </span>
+          <img src="/logout_door.png" alt="" style={{ height: 32, filter: "invert(1)" }} />
+          <span style={{ color: "white", fontWeight: "bold" }}>Déconnexion</span>
         </button>
       </div>
 
-      {/* CONTENU VUE GLOBALE */}
+      {/* CONTENU */}
       <div style={{ padding: 20 }}>
-        <h1 style={{ marginBottom: 10 }}>Vue globale des attractions</h1>
-
-        <p style={{ fontSize: 18, marginBottom: 25 }}>
-          Journée du :{" "}
-          <strong>
-            {effectiveDate ? effectiveDate.label_complet : "Aucune date"}
-          </strong>
+        <h1>Vue globale des attractions</h1>
+        <p style={{ fontSize: 18 }}>
+          Journée du : <strong>{effectiveDate?.label_complet}</strong>
         </p>
 
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: 25,
-            marginTop: 20,
+            gap: 25
           }}
         >
           {attractionsList.map((a) => {
-            const isDone = validatedAttractions.includes(a.nom);
+            const key = clean(a.nom);
+            const hasChecklist = validatedAttractions.includes(key);
+
+            const s =
+              securityStatus[a.nom] ||
+              securityStatus[key] ||
+              null;
+
+            const pcStatus = normalizeStatus(s?.status);
+            const manual = s?.manual === true;
+
+            // -----------------------------------------
+            // 🔥 LOGIQUE FINALE 100% FIABLE
+            // -----------------------------------------
+            let final;
+
+            if (!hasChecklist) {
+              final = "fermee";
+            } else if (manual && pcStatus !== "ouverte") {
+              final = pcStatus;
+            } else {
+              final = "ouverte";
+            }
 
             return (
               <div
                 key={a.nom}
                 style={{
-                  position: "relative",
-                  textAlign: "center",
-                  padding: 12,
+                  background: colors[final],
                   borderRadius: 14,
-                  background: isDone ? "#d4ffd4" : "#f7f7f7",
+                  padding: 12,
+                  height: 230,
+                  textAlign: "center",
                   boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                  transition: "0.2s",
-                  height: 200,
+                  opacity: hasChecklist ? 1 : 0.55
                 }}
               >
                 <img
                   src={`/attractions/${a.image}`}
-                  alt={a.nom}
+                  alt=""
                   style={{
-                    width: "100%",
-                    height: 150,
-                    objectFit: "cover",
-                    borderRadius: 10,
-                    opacity: isDone ? 0.65 : 1,
+                    width: "100%", height: 150,
+                    objectFit: "cover", borderRadius: 10,
+                    opacity: hasChecklist ? 1 : 0.45
                   }}
                 />
 
-                {isDone && (
-                  <img
-                    src="/ok.png"
-                    alt=""
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      width: 60,
-                      transform: "translate(-50%, -50%)",
-                      opacity: 0.9,
-                    }}
-                  />
-                )}
+                <p style={{ marginTop: 10, fontWeight: "bold" }}>{a.nom}</p>
 
-                <p style={{ marginTop: 10, fontWeight: "bold", fontSize: 16 }}>
-                  {a.nom}
+                <p style={{ fontSize: 14, marginTop: 4 }}>
+                  {!hasChecklist
+                    ? "En attente de checklist…"
+                    : `Statut : ${labels[final]}`}
                 </p>
               </div>
             );

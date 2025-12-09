@@ -4,7 +4,14 @@ import { useNavigate } from "react-router-dom";
 import Calendar from "../components/Calendar";
 import ChecklistList from "../components/ChecklistList";
 import { db, auth } from "../firebase";
-import { collection, query, where, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  deleteDoc,
+  doc
+} from "firebase/firestore";
 import { signOut } from "firebase/auth";
 
 export default function Dashboard({ setSelectedDateGlobal }) {
@@ -15,118 +22,40 @@ export default function Dashboard({ setSelectedDateGlobal }) {
     mensuelle: [],
   });
 
+  // 🔥 MODALE personnalisée
+  const [modal, setModal] = useState({
+    open: false,
+    checklist: null,
+  });
+
   const navigate = useNavigate();
 
-  const formatDisplayedDate = (dateObj) => {
-    if (!dateObj || !dateObj.raw) return "";
-
-    const jours = [
-      "dimanche", "lundi", "mardi",
-      "mercredi", "jeudi", "vendredi", "samedi"
-    ];
-
-    const mois = [
-      "janvier", "février", "mars", "avril", "mai", "juin",
-      "juillet", "août", "septembre", "octobre", "novembre", "décembre"
-    ];
-
-    const d = dateObj.raw;
-    return `${jours[d.getDay()]} ${String(d.getDate()).padStart(2, "0")} ${
-      mois[d.getMonth()]
-    } ${d.getFullYear()}`;
+  const formatDisplayed = (d) => {
+    if (!d || !d.raw) return "";
+    return d.raw.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    });
   };
 
-  // ⚡ au montage : se positionner automatiquement sur AUJOURD'HUI
+  // Sélection automatique du jour
   useEffect(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    const jours = [
-      "dimanche", "lundi", "mardi",
-      "mercredi", "jeudi", "vendredi", "samedi"
-    ];
-    const mois = [
-      "janvier", "février", "mars", "avril", "mai", "juin",
-      "juillet", "août", "septembre", "octobre", "novembre", "décembre"
-    ];
-
-    const jourNom = jours[now.getDay()];
-    const jourNum = String(now.getDate()).padStart(2, "0");
-    const moisNom = mois[now.getMonth()];
-    const annee = now.getFullYear();
-
-    const todayObj = {
+    const obj = {
       raw: now,
       label: now.toLocaleDateString("fr-FR"),
-      label_complet: `${jourNom} ${jourNum} ${moisNom} ${annee}`,
+      label_complet: formatDisplayed({ raw: now })
     };
 
-    setSelectedDate(todayObj);
-    if (setSelectedDateGlobal) setSelectedDateGlobal(todayObj);
+    setSelectedDate(obj);
+    setSelectedDateGlobal?.(obj);
   }, []);
 
-  // ACTIONS PDF
-  const handleView = (c) => {
-    if (!c.pdf_url) return;
-    window.open(c.pdf_url, "_blank");
-  };
-
-  const handleDownload = async (c) => {
-    try {
-      const response = await fetch(c.pdf_url);
-      const blob = await response.blob();
-
-      const url = window.URL.createObjectURL(blob);
-      const dateStr = c.timestamp?.toDate
-        ? c.timestamp.toDate().toLocaleDateString("fr-FR")
-        : "";
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Checklist_${c.type}_${c.attraction}_${dateStr}.pdf`;
-      a.click();
-
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      alert("Impossible de télécharger le fichier.");
-    }
-  };
-
-  const handlePrint = (c) => {
-    if (!c.pdf_url) return;
-
-    const win = window.open("", "_blank");
-    if (!win) {
-      alert("Veuillez autoriser les pop-ups.");
-      return;
-    }
-
-    win.document.write(`
-      <html>
-        <body style="margin:0">
-          <iframe src="${c.pdf_url}" style="width:100vw;height:100vh;" frameborder="0"></iframe>
-        </body>
-      </html>
-    `);
-
-    setTimeout(() => {
-      win.focus();
-      win.print();
-    }, 700);
-  };
-
-  const handleDelete = async (c) => {
-    if (!window.confirm(`Supprimer la checklist pour ${c.attraction} ?`)) return;
-
-    try {
-      await deleteDoc(doc(db, "checklists", c.id));
-      alert("Checklist supprimée.");
-    } catch {
-      alert("Impossible de supprimer cette checklist.");
-    }
-  };
-
-  // 🔥 LISTES PAR DATE (live)
+  // Listener checklists du jour
   useEffect(() => {
     if (!selectedDate) return;
 
@@ -142,14 +71,14 @@ export default function Dashboard({ setSelectedDateGlobal }) {
       where("timestamp", "<=", end)
     );
 
-    const unsub = onSnapshot(q, (snapshot) => {
+    return onSnapshot(q, (snap) => {
       const journ = [];
       const hebdo = [];
       const mens = [];
 
-      snapshot.forEach((docSnapshot) => {
-        const data = { id: docSnapshot.id, ...docSnapshot.data() };
-        data.attraction = data.attraction || "Attraction";
+      snap.forEach((docSnap) => {
+        const data = { id: docSnap.id, ...docSnap.data() };
+        data.attraction = String(data.attraction || "").trim();
 
         if (data.type === "journaliere") journ.push(data);
         if (data.type === "hebdomadaire") hebdo.push(data);
@@ -162,17 +91,109 @@ export default function Dashboard({ setSelectedDateGlobal }) {
         mensuelle: mens,
       });
     });
-
-    return () => unsub();
   }, [selectedDate]);
 
-  const handleLogout = async () => {
-    await signOut(auth);
+  const handleLogout = async () => await signOut(auth);
+
+  // ✅ OUVERTURE DE LA MODALE (plus de popup Chrome !)
+  const handleDelete = (checklist) => {
+    setModal({
+      open: true,
+      checklist
+    });
+  };
+
+  // ✅ CONFIRMATION suppression
+  const confirmDelete = async () => {
+    await deleteDoc(doc(db, "checklists", modal.checklist.id));
+    setModal({ open: false, checklist: null });
+  };
+
+  const cancelDelete = () => setModal({ open: false, checklist: null });
+
+  const onDateSelect = (d) => {
+    const clean = new Date(d.raw);
+    clean.setHours(0, 0, 0, 0);
+
+    const obj = {
+      raw: clean,
+      label: clean.toLocaleDateString("fr-FR"),
+      label_complet: formatDisplayed({ raw: clean }),
+    };
+
+    setSelectedDate(obj);
+    setSelectedDateGlobal?.(obj);
   };
 
   return (
     <div style={{ padding: 0 }}>
-      {/* BANNIÈRE VERTE */}
+      
+      {/* --- MODALE SUPPRESSION --- */}
+      {modal.open && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.55)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 9999
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              padding: 30,
+              borderRadius: 12,
+              width: 380,
+              textAlign: "center",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+            }}
+          >
+            <h3>Confirmation</h3>
+            <p style={{ marginBottom: 20 }}>
+              <strong>{modal.checklist.type}</strong> —{" "}
+              <strong>{modal.checklist.attraction}</strong><br /><br />
+              Voulez-vous vraiment supprimer cette checklist ?
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "space-around", marginTop: 20 }}>
+              <button
+                onClick={cancelDelete}
+                style={{
+                  padding: "8px 20px",
+                  borderRadius: 8,
+                  border: "1px solid #999",
+                  background: "#eaeaea",
+                  cursor: "pointer"
+                }}
+              >
+                Annuler
+              </button>
+
+              <button
+                onClick={confirmDelete}
+                style={{
+                  padding: "8px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#d9534f",
+                  color: "white",
+                  cursor: "pointer",
+                  fontWeight: "bold"
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- BANNIÈRE --- */}
       <div
         style={{
           width: "100%",
@@ -184,43 +205,43 @@ export default function Dashboard({ setSelectedDateGlobal }) {
           position: "relative",
         }}
       >
-        {/* Bouton Vue globale */}
         <button
-          onClick={() => navigate("/global")}
+          onClick={() => navigate("/pc-securite")}
           style={{
-            position: "absolute",
-            left: 20,
+            position: "absolute", left: 20,
             backgroundColor: "#2f6f3a",
             border: "3px solid #f5c400",
             padding: "8px 18px",
             borderRadius: 10,
             color: "white",
-            fontSize: 17,
             fontWeight: "bold",
-            boxShadow: "0 3px 0 #b48d00",
-            cursor: "pointer",
-            transition: "0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "scale(1.05)";
-            e.currentTarget.style.backgroundColor = "#398845";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.backgroundColor = "#2f6f3a";
           }}
         >
-          Vue globale
+          PC Sécurité
         </button>
 
-        {/* Logo */}
         <img
           src="/logo_walygator_maintenance.png"
           alt="logo"
           style={{ height: 80 }}
         />
 
-        {/* Déconnexion */}
+        <button
+          onClick={() => navigate("/global")}
+          style={{
+            position: "absolute",
+            right: 90,
+            backgroundColor: "#2f6f3a",
+            border: "3px solid #f5c400",
+            padding: "8px 18px",
+            borderRadius: 10,
+            color: "white",
+            fontWeight: "bold",
+          }}
+        >
+          Vue globale
+        </button>
+
         <button
           onClick={handleLogout}
           style={{
@@ -229,61 +250,41 @@ export default function Dashboard({ setSelectedDateGlobal }) {
             background: "transparent",
             border: "none",
             cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
           }}
         >
-          <img src="/logout_door.png" alt="logout" style={{ height: 32, filter: "invert(1)" }} />
-          <span style={{ color: "white", fontSize: 16, fontWeight: "bold" }}>Déconnexion</span>
+          <img
+            src="/logout_door.png"
+            alt=""
+            style={{ height: 32, filter: "invert(1)" }}
+          />
         </button>
       </div>
 
-      {/* CONTENU */}
+      {/* --- CONTENU --- */}
       <div style={{ display: "flex", padding: 20, gap: 40 }}>
         <div style={{ width: "40%" }}>
-          <h2 style={{ marginTop: 10 }}>Calendrier</h2>
-
-          <Calendar
-            onDateSelect={(d) => {
-              setSelectedDate(d);
-              if (setSelectedDateGlobal) setSelectedDateGlobal(d);
-            }}
-            selectedDate={selectedDate}
-          />
+          <h2>Calendrier</h2>
+          <Calendar onDateSelect={onDateSelect} selectedDate={selectedDate} />
         </div>
 
         <div style={{ width: "60%" }}>
-          <h2 style={{ marginTop: 10 }}>
-            {selectedDate
-              ? `Checklists du ${formatDisplayedDate(selectedDate)}`
-              : "Sélectionnez un jour dans le calendrier"}
-          </h2>
+          <h2>Checklists du {selectedDate?.label_complet}</h2>
 
           <ChecklistList
             title="Checklist journalière"
             checklists={lists.journaliere}
-            onView={handleView}
-            onDownload={handleDownload}
-            onPrint={handlePrint}
             onDelete={handleDelete}
           />
 
           <ChecklistList
             title="Checklist hebdomadaire"
             checklists={lists.hebdomadaire}
-            onView={handleView}
-            onDownload={handleDownload}
-            onPrint={handlePrint}
             onDelete={handleDelete}
           />
 
           <ChecklistList
             title="Checklist mensuelle"
             checklists={lists.mensuelle}
-            onView={handleView}
-            onDownload={handleDownload}
-            onPrint={handlePrint}
             onDelete={handleDelete}
           />
         </div>
