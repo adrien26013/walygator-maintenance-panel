@@ -10,11 +10,7 @@ import {
   Zoom,
 } from "@mui/material";
 
-export default function ChecklistList({
-  title,
-  checklists,
-  onDelete, // handleDelete() vient du Dashboard
-}) {
+export default function ChecklistList({ title, checklists, onDelete }) {
   const [open, setOpen] = useState(false);
   const [selectedChecklist, setSelectedChecklist] = useState(null);
 
@@ -45,9 +41,10 @@ export default function ChecklistList({
 
         const formattedDate = dateObj.toLocaleDateString("fr-FR");
 
+        // 🔥 Support parfait pour trimestrielle + fallback propre
         const attr = Array.isArray(c.attractions)
           ? c.attractions.join(", ")
-          : c.attraction || "—";
+          : c.attraction || "Attraction inconnue";
 
         return (
           <div
@@ -60,7 +57,9 @@ export default function ChecklistList({
               borderBottom: "1px solid #eee",
             }}
           >
-            <span>Checklist_{c.type}_{attr}_{formattedDate}</span>
+            <span>
+              Checklist_{c.type}_{attr}_{formattedDate}
+            </span>
 
             {/* Voir */}
             {c.pdf_url && (
@@ -119,16 +118,15 @@ export default function ChecklistList({
       })}
 
       {/* **************************************************************** */}
-      {/* 🔥 POPUP MATERIAL UI STYLISÉ + ANIMATION + CENTRAGE */}
+      {/* POPUP MUI ANIMÉ + DESIGN CONSERVÉ */}
       {/* **************************************************************** */}
-
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        TransitionComponent={Zoom} // 🔥 Animation Zoom-In très propre
+        TransitionComponent={Zoom}
         PaperProps={{
           sx: {
-            borderRadius: 3, // 🔥 Bords arrondis
+            borderRadius: 3,
             paddingBottom: 1,
             minWidth: 400,
             backgroundColor: "#ffffff",
@@ -147,14 +145,7 @@ export default function ChecklistList({
         </DialogTitle>
 
         <DialogContent sx={{ textAlign: "center" }}>
-          {/* 🔥 TITRE AU CENTRE : journalière – Coccinelle */}
-          <h2
-            style={{
-              marginTop: 0,
-              fontSize: 20,
-              color: "#000",
-            }}
-          >
+          <h2 style={{ marginTop: 0, fontSize: 20, color: "#000" }}>
             {selectedChecklist
               ? `${selectedChecklist.type} – ${selectedChecklist.attraction}`
               : ""}

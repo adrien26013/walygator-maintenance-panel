@@ -16,13 +16,16 @@ import { signOut } from "firebase/auth";
 
 export default function Dashboard({ setSelectedDateGlobal }) {
   const [selectedDate, setSelectedDate] = useState(null);
+
+  // 🔥 Ajout de la checklist trimestrielle
   const [lists, setLists] = useState({
     journaliere: [],
     hebdomadaire: [],
     mensuelle: [],
+    trimestrielle: [],
   });
 
-  // 🔥 MODALE personnalisée
+  // MODALE suppression
   const [modal, setModal] = useState({
     open: false,
     checklist: null,
@@ -55,7 +58,7 @@ export default function Dashboard({ setSelectedDateGlobal }) {
     setSelectedDateGlobal?.(obj);
   }, []);
 
-  // Listener checklists du jour
+  // Listener Firestore
   useEffect(() => {
     if (!selectedDate) return;
 
@@ -75,6 +78,7 @@ export default function Dashboard({ setSelectedDateGlobal }) {
       const journ = [];
       const hebdo = [];
       const mens = [];
+      const trimes = [];
 
       snap.forEach((docSnap) => {
         const data = { id: docSnap.id, ...docSnap.data() };
@@ -83,19 +87,21 @@ export default function Dashboard({ setSelectedDateGlobal }) {
         if (data.type === "journaliere") journ.push(data);
         if (data.type === "hebdomadaire") hebdo.push(data);
         if (data.type === "mensuelle") mens.push(data);
+        if (data.type === "trimestrielle") trimes.push(data);
       });
 
       setLists({
         journaliere: journ,
         hebdomadaire: hebdo,
         mensuelle: mens,
+        trimestrielle: trimes,
       });
     });
   }, [selectedDate]);
 
   const handleLogout = async () => await signOut(auth);
 
-  // ✅ OUVERTURE DE LA MODALE (plus de popup Chrome !)
+  // OUVERTURE MODALE SUPPRESSION
   const handleDelete = (checklist) => {
     setModal({
       open: true,
@@ -103,7 +109,6 @@ export default function Dashboard({ setSelectedDateGlobal }) {
     });
   };
 
-  // ✅ CONFIRMATION suppression
   const confirmDelete = async () => {
     await deleteDoc(doc(db, "checklists", modal.checklist.id));
     setModal({ open: false, checklist: null });
@@ -127,7 +132,7 @@ export default function Dashboard({ setSelectedDateGlobal }) {
 
   return (
     <div style={{ padding: 0 }}>
-      
+
       {/* --- MODALE SUPPRESSION --- */}
       {modal.open && (
         <div
@@ -193,7 +198,7 @@ export default function Dashboard({ setSelectedDateGlobal }) {
         </div>
       )}
 
-      {/* --- BANNIÈRE --- */}
+      {/* --- HEADER --- */}
       <div
         style={{
           width: "100%",
@@ -285,6 +290,12 @@ export default function Dashboard({ setSelectedDateGlobal }) {
           <ChecklistList
             title="Checklist mensuelle"
             checklists={lists.mensuelle}
+            onDelete={handleDelete}
+          />
+
+          <ChecklistList
+            title="Checklist trimestrielle"
+            checklists={lists.trimestrielle}
             onDelete={handleDelete}
           />
         </div>

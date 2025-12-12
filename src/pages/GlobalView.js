@@ -1,4 +1,3 @@
-// src/pages/GlobalView.js
 import React, { useEffect, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../firebase";
@@ -17,7 +16,6 @@ export default function GlobalView({ selectedDate }) {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
-  // 🔥 Traduction affichage humain
   const translateStatus = (s) => {
     if (s === "panne") return "En panne";
     if (s === "evacuation") return "Evacuation en cours...";
@@ -25,6 +23,10 @@ export default function GlobalView({ selectedDate }) {
     if (s === "fermee") return "Fermée";
     return s;
   };
+
+  // 🔥 Styles animation
+  const blinkStyle = { animation: "blink 1s infinite" };
+  const fadeStyle = { animation: "fadeIn 0.6s ease-out" };
 
   // 🔥 Listener PC Sécurité
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function GlobalView({ selectedDate }) {
     });
   }, []);
 
-  // 🔥 Mise à jour date affichée
+  // 🔥 Mise à jour date
   useEffect(() => {
     if (!selectedDate || !selectedDate.raw) return;
 
@@ -60,7 +62,7 @@ export default function GlobalView({ selectedDate }) {
     });
   }, [selectedDate]);
 
-  // 🔥 Écoute temps réel des checklists journalières
+  // 🔥 Listener checklists journalières
   useEffect(() => {
     if (!effectiveDate) return;
 
@@ -76,7 +78,6 @@ export default function GlobalView({ selectedDate }) {
         ts.setHours(0, 0, 0, 0);
 
         if (!isSameDay(ts, effectiveDate.raw)) return;
-
         validated.add(clean(d.attraction));
       });
 
@@ -95,6 +96,22 @@ export default function GlobalView({ selectedDate }) {
 
   return (
     <div style={{ padding: 0 }}>
+
+      {/* 🔥 CSS ANIMATIONS */}
+      <style>
+        {`
+        @keyframes blink {
+          0% { opacity: 1; }
+          50% { opacity: 0.35; }
+          100% { opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        `}
+      </style>
 
       {/* BANNIÈRE */}
       <div
@@ -184,21 +201,25 @@ export default function GlobalView({ selectedDate }) {
             }
 
             const isDisabled = !hasChecklist;
-
             const bg =
               final === "ouverte" && hasChecklist ? "#9aff9a" : colors[final];
+
+            const applyBlink = manual && (final === "panne" || final === "evacuation");
+            const applyFade = final === "ouverte" || final === "fermee";
 
             return (
               <div
                 key={a.nom}
                 style={{
-                  background: isDisabled ? "#d9d9d9" : bg, // 🔥 VRAI GRIS comme PC Sécurité
+                  background: isDisabled ? "#d9d9d9" : bg,
                   borderRadius: 14,
                   padding: 12,
                   height: 230,
                   textAlign: "center",
                   boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
                   opacity: isDisabled ? 0.55 : 1,
+
+                  ...(applyBlink ? blinkStyle : applyFade ? fadeStyle : {})
                 }}
               >
                 <img
@@ -224,7 +245,6 @@ export default function GlobalView({ selectedDate }) {
             );
           })}
         </div>
-
       </div>
     </div>
   );
