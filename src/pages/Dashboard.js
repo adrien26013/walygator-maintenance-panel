@@ -14,10 +14,33 @@ import {
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 
+/* 🔒 NORMALISATION IDENTIQUE À FLUTTER */
+const normalizeAttraction = (s) =>
+  String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[àâä]/g, "a")
+    .replace(/[éèêë]/g, "e")
+    .replace(/[îï]/g, "i")
+    .replace(/[ôö]/g, "o")
+    .replace(/[ùûü]/g, "u")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+
+/** ✅ extrait une liste d’IDs depuis Firestore */
+const extractAttractionIds = (d) => {
+  if (d && d.attractions && typeof d.attractions === "object" && !Array.isArray(d.attractions)) {
+    return Object.keys(d.attractions).map((k) => normalizeAttraction(k));
+  }
+  if (Array.isArray(d?.attractions)) return d.attractions.map((x) => normalizeAttraction(x));
+  if (typeof d?.attraction === "string") return [normalizeAttraction(d.attraction)];
+  return [];
+};
+
 export default function Dashboard({ setSelectedDateGlobal }) {
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // 🔥 Ajout de la checklist trimestrielle
   const [lists, setLists] = useState({
     journaliere: [],
     hebdomadaire: [],
@@ -81,8 +104,18 @@ export default function Dashboard({ setSelectedDateGlobal }) {
       const trimes = [];
 
       snap.forEach((docSnap) => {
-        const data = { id: docSnap.id, ...docSnap.data() };
-        data.attraction = String(data.attraction || "").trim();
+        const raw = docSnap.data();
+        const data = { id: docSnap.id, ...raw };
+
+        // ✅ normalisation "attractions" (array) quelle que soit la structure
+        const ids = extractAttractionIds(raw);
+        data.attractions = ids;
+
+        // ✅ pour l’UI existante (ChecklistList), on conserve data.attraction en string
+        // -> si l'ancien champ n'existe pas, on met le 1er id
+        if (typeof data.attraction !== "string" || !data.attraction.trim()) {
+          data.attraction = ids[0] || "Attraction inconnue";
+        }
 
         if (data.type === "journaliere") journ.push(data);
         if (data.type === "hebdomadaire") hebdo.push(data);

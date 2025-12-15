@@ -1,50 +1,81 @@
-// src/components/ChecklistList.js
-import React, { useState } from "react";
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Zoom,
-} from "@mui/material";
+import React from "react";
+
+/* =========================
+   🎨 STYLES BOUTONS
+   ========================= */
+
+const btnBase = {
+  padding: "6px 12px",
+  borderRadius: 8,
+  border: "2px solid #235630",
+  fontWeight: "bold",
+  cursor: "pointer",
+  fontSize: 13,
+};
+
+const btnPrimary = {
+  ...btnBase,
+  backgroundColor: "#2f6f3a",
+  color: "white",
+};
+
+const btnOutline = {
+  ...btnBase,
+  backgroundColor: "white",
+  color: "#235630",
+};
+
+const btnDanger = {
+  ...btnBase,
+  backgroundColor: "#d9534f",
+  borderColor: "#b52b27",
+  color: "white",
+};
 
 export default function ChecklistList({ title, checklists, onDelete }) {
-  const [open, setOpen] = useState(false);
-  const [selectedChecklist, setSelectedChecklist] = useState(null);
+  // 🔧 crazy_bus → Crazy Bus
+  const formatAttraction = (name) => {
+    if (!name) return "Attraction inconnue";
 
-  // 🔥 Ouvre le popup animé
-  const handleAskDelete = (c) => {
-    setSelectedChecklist(c);
-    setOpen(true);
+    return String(name)
+      .trim()
+      .replace(/_/g, " ")
+      .split(" ")
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
-  // 🔥 Confirme la suppression
-  const handleConfirmDelete = () => {
-    if (onDelete && selectedChecklist) {
-      onDelete(selectedChecklist);
+  // ✅ Récupère l'attraction quelque soit le schéma Firestore
+  const getAttractionName = (c) => {
+    // nouveau schéma : attractions: ["crazy_bus"]
+    if (Array.isArray(c.attractions) && c.attractions.length > 0) {
+      return c.attractions[0];
     }
-    setOpen(false);
+    // ancien schéma : attraction: "crazy_bus"
+    if (typeof c.attraction === "string" && c.attraction.trim() !== "") {
+      return c.attraction;
+    }
+    return null;
+  };
+
+  const formatDate = (timestamp) => {
+    const dateObj = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    return dateObj.toLocaleDateString("fr-FR");
   };
 
   return (
     <div style={{ marginTop: 20 }}>
       <h3>{title}</h3>
 
-      {checklists.length === 0 && <p>Aucune liste de contrôle</p>}
+      {(!checklists || checklists.length === 0) && <p>Aucune liste de contrôle</p>}
 
-      {checklists.map((c) => {
-        const dateObj = c.timestamp?.toDate
-          ? c.timestamp.toDate()
-          : new Date(c.timestamp);
+      {checklists?.map((c) => {
+        const attractionRaw = getAttractionName(c);
+        const attraction = formatAttraction(attractionRaw);
+        const date = formatDate(c.timestamp);
 
-        const formattedDate = dateObj.toLocaleDateString("fr-FR");
-
-        // 🔥 Support parfait pour trimestrielle + fallback propre
-        const attr = Array.isArray(c.attractions)
-          ? c.attractions.join(", ")
-          : c.attraction || "Attraction inconnue";
+        const label = `Checklist_${c.type}_${attraction}_${date}`;
 
         return (
           <div
@@ -52,129 +83,60 @@ export default function ChecklistList({ title, checklists, onDelete }) {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 16,
-              padding: 8,
-              borderBottom: "1px solid #eee",
+              gap: 10,
+              padding: "8px 0",
+              borderBottom: "1px solid #e0e0e0",
             }}
           >
-            <span>
-              Checklist_{c.type}_{attr}_{formattedDate}
+            {/* ✅ TOUT LE TEXTE EN GRAS */}
+            <span style={{ flex: 1, fontWeight: 800 }}>
+              {label}
             </span>
 
-            {/* Voir */}
             {c.pdf_url && (
-              <Button
-                variant="outlined"
-                onClick={() => window.open(c.pdf_url, "_blank")}
-              >
-                Voir
-              </Button>
+              <button style={btnOutline} onClick={() => window.open(c.pdf_url, "_blank")}>
+                👁 Voir
+              </button>
             )}
 
-            {/* Télécharger */}
             {c.pdf_url && (
-              <Button
-                variant="outlined"
+              <button
+                style={btnPrimary}
                 onClick={async () => {
                   const response = await fetch(c.pdf_url);
                   const blob = await response.blob();
-                  const url = window.URL.createObjectURL(blob);
+                  const url = URL.createObjectURL(blob);
+
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `Checklist_${c.type}_${attr}.pdf`;
+                  a.download = `${label}.pdf`;
                   a.click();
+
+                  URL.revokeObjectURL(url);
                 }}
               >
-                Télécharger
-              </Button>
+                ⬇ Télécharger
+              </button>
             )}
 
-            {/* Imprimer */}
             {c.pdf_url && (
-              <Button
-                variant="outlined"
+              <button
+                style={btnOutline}
                 onClick={() => {
                   const win = window.open(c.pdf_url, "_blank");
-                  win.onload = () => {
-                    win.focus();
-                    win.print();
-                  };
+                  win.onload = () => win.print();
                 }}
               >
-                Imprimer
-              </Button>
+                🖨 Imprimer
+              </button>
             )}
 
-            {/* 🔥 Bouton SUPPRIMER */}
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={() => handleAskDelete(c)}
-            >
-              Supprimer
-            </Button>
+            <button style={btnDanger} onClick={() => onDelete?.(c)}>
+              🗑 Supprimer
+            </button>
           </div>
         );
       })}
-
-      {/* **************************************************************** */}
-      {/* POPUP MUI ANIMÉ + DESIGN CONSERVÉ */}
-      {/* **************************************************************** */}
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        TransitionComponent={Zoom}
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            paddingBottom: 1,
-            minWidth: 400,
-            backgroundColor: "#ffffff",
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            textAlign: "center",
-            fontWeight: "bold",
-            fontSize: 22,
-            color: "#235630",
-          }}
-        >
-          Confirmation
-        </DialogTitle>
-
-        <DialogContent sx={{ textAlign: "center" }}>
-          <h2 style={{ marginTop: 0, fontSize: 20, color: "#000" }}>
-            {selectedChecklist
-              ? `${selectedChecklist.type} – ${selectedChecklist.attraction}`
-              : ""}
-          </h2>
-
-          <DialogContentText sx={{ fontSize: 16, marginTop: 1 }}>
-            Voulez-vous vraiment supprimer cette checklist ?
-          </DialogContentText>
-        </DialogContent>
-
-        <DialogActions sx={{ justifyContent: "center", paddingBottom: 2 }}>
-          <Button
-            onClick={() => setOpen(false)}
-            variant="outlined"
-            sx={{ borderRadius: 2 }}
-          >
-            Annuler
-          </Button>
-
-          <Button
-            onClick={handleConfirmDelete}
-            variant="contained"
-            color="error"
-            sx={{ borderRadius: 2 }}
-          >
-            Supprimer
-          </Button>
-        </DialogActions>
-      </Dialog>
     </div>
   );
 }

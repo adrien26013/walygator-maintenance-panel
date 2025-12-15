@@ -1,22 +1,74 @@
-// src/pages/StatutAttractions.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { collection, doc, setDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import attractionsList from "../data/attractionsList";
 
+/* 🔒 NORMALISATION IDENTIQUE À FLUTTER */
+const normalizeAttraction = (s) =>
+  String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[àâä]/g, "a")
+    .replace(/[éèêë]/g, "e")
+    .replace(/[îï]/g, "i")
+    .replace(/[ôö]/g, "o")
+    .replace(/[ùûü]/g, "u")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+
+/* Timestamp Firestore -> Date */
+const toDate = (ts) => {
+  if (!ts) return null;
+  if (typeof ts.toDate === "function") return ts.toDate();
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const isSameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+/* Extraction attractions depuis checklist (tous formats) */
+const extractAttractionIds = (d) => {
+  if (d?.attractions && typeof d.attractions === "object" && !Array.isArray(d.attractions)) {
+    return Object.keys(d.attractions).map(normalizeAttraction);
+  }
+
+  if (Array.isArray(d?.attractions)) {
+    return d.attractions.map(normalizeAttraction);
+  }
+
+  if (typeof d?.attraction === "string") {
+    return [normalizeAttraction(d.attraction)];
+  }
+
+  return [];
+};
+
 export default function StatutAttractions() {
   const [statuses, setStatuses] = useState({});
   const [validatedToday, setValidatedToday] = useState(new Set());
+  const [lastChecklistAt, setLastChecklistAt] = useState(null);
 
-  const clean = (s) => String(s || "").trim().toLowerCase();
+  /* 🔄 Tick minute pour détecter minuit */
+  const [dayTick, setDayTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setDayTick((x) => x + 1), 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
 
-  const isSameDay = (a, b) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
+  const today0 = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [dayTick]);
 
-  // 🔥 1) Listener temps réel PC Sécurité
+  /* ==============================
+     1️⃣ LISTENER PC SÉCURITÉ
+     ============================== */
   useEffect(() => {
     return onSnapshot(collection(db, "attractionStatus"), (snap) => {
       const out = {};
@@ -25,68 +77,47 @@ export default function StatutAttractions() {
     });
   }, []);
 
-  // 🔥 2) Listener temps réel CHECKLISTS + RESET automatique Firestore
+  /* ==================================
+     2️⃣ LISTENER CHECKLISTS JOURNALIÈRES
+     ================================== */
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "checklists"), async (snap) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const newSet = new Set();
+    return onSnapshot(collection(db, "checklists"), (snap) => {
+      const set = new Set();
+      let latestChecklist = null;
 
       snap.forEach((docSnap) => {
         const d = docSnap.data();
-        if (d.type !== "journaliere") return;
-        if (!d.timestamp) return;
+        if (d?.type !== "journaliere") return;
 
-        const ts = d.timestamp.toDate ? d.timestamp.toDate() : new Date(d.timestamp);
-        ts.setHours(0, 0, 0, 0);
+        const ts = toDate(d.timestamp);
+        if (!ts) return;
 
-        if (isSameDay(ts, today)) newSet.add(clean(d.attraction));
+        const t0 = new Date(ts);
+        t0.setHours(0, 0, 0, 0);
+        if (!isSameDay(t0, today0)) return;
+
+        if (!latestChecklist || ts > latestChecklist) {
+          latestChecklist = ts;
+        }
+
+        extractAttractionIds(d).forEach((id) => set.add(id));
       });
 
-      // 🔥 CHECKLIST SUPPRIMÉE → reset du statut (fermé + manual false)
-      for (const key of validatedToday) {
-        if (!newSet.has(key)) {
-          await setDoc(
-            doc(db, "attractionStatus", key),
-            {
-              status: "fermee",
-              manual: false,
-              updated_at: new Date()
-            },
-            { merge: true }
-          );
-        }
-      }
-
-      // 🔥 CHECKLIST AJOUTÉE → statut = ouverte (reset mémoire)
-      for (const key of newSet) {
-        if (!validatedToday.has(key)) {
-          await setDoc(
-            doc(db, "attractionStatus", key),
-            {
-              status: "ouverte",
-              manual: false,
-              updated_at: new Date()
-            },
-            { merge: true }
-          );
-        }
-      }
-
-      setValidatedToday(newSet); // ⚡ Mise à jour immédiate de l'UI
+      setValidatedToday(set);
+      setLastChecklistAt(latestChecklist);
     });
+  }, [today0]);
 
-    return () => unsub();
-  }, []); // ← très important : pas de dépendance
-
-  // 🔥 3) Mise à jour manuelle PC Sécurité
-  const updateStatus = async (nom, statut) => {
+  /* ==========================
+     3️⃣ ACTION PC SÉCURITÉ
+     ========================== */
+  const updateStatus = async (key, statut) => {
     await setDoc(
-      doc(db, "attractionStatus", nom),
+      doc(db, "attractionStatus", key),
       {
         status: statut,
         manual: true,
+        manual_at: new Date(), // 🔥 clé mémoire
         updated_at: new Date()
       },
       { merge: true }
@@ -172,20 +203,26 @@ export default function StatutAttractions() {
           }}
         >
           {attractionsList.map((a) => {
-            const key = clean(a.nom);
+            const key = normalizeAttraction(a.nom);
 
             const record = statuses[key] || {};
             const hasChecklist = validatedToday.has(key);
-            const forced = record.manual === true;
 
-            let displayStatus = record.status || "fermee";
+            let displayStatus = "fermee";
 
-            // 🔥 Checklist = OUVERT sauf si PC force autre
             if (hasChecklist) {
-              if (forced && record.status !== "ouverte") {
+              displayStatus = "ouverte";
+
+              const manualAt = toDate(record.manual_at);
+
+              if (
+                record.manual === true &&
+                manualAt &&
+                lastChecklistAt &&
+                manualAt > lastChecklistAt &&
+                record.status !== "ouverte"
+              ) {
                 displayStatus = record.status;
-              } else {
-                displayStatus = "ouverte";
               }
             }
 
@@ -223,7 +260,6 @@ export default function StatutAttractions() {
                     : `Statut : ${translateStatus(displayStatus)}`}
                 </p>
 
-                {/* BOUTONS */}
                 <div
                   style={{
                     display: "flex",
@@ -232,59 +268,19 @@ export default function StatutAttractions() {
                     pointerEvents: isDisabled ? "none" : "auto"
                   }}
                 >
-                  <button
-                    onClick={() => updateStatus(key, "fermee")}
-                    style={{
-                      background: "#ff4d4d",
-                      padding: "6px 10px",
-                      color: "white",
-                      borderRadius: 6,
-                      border: "none",
-                      fontWeight: "bold"
-                    }}
-                  >
+                  <button onClick={() => updateStatus(key, "fermee")} style={{ background: "#ff4d4d", padding: "6px 10px", color: "white", borderRadius: 6, border: "none", fontWeight: "bold" }}>
                     Fermée
                   </button>
 
-                  <button
-                    onClick={() => updateStatus(key, "ouverte")}
-                    style={{
-                      background: "#34c759",
-                      padding: "6px 10px",
-                      color: "white",
-                      borderRadius: 6,
-                      border: "none",
-                      fontWeight: "bold"
-                    }}
-                  >
+                  <button onClick={() => updateStatus(key, "ouverte")} style={{ background: "#34c759", padding: "6px 10px", color: "white", borderRadius: 6, border: "none", fontWeight: "bold" }}>
                     Ouverte
                   </button>
 
-                  <button
-                    onClick={() => updateStatus(key, "panne")}
-                    style={{
-                      background: "#f2c94c",
-                      padding: "6px 10px",
-                      color: "black",
-                      borderRadius: 6,
-                      border: "none",
-                      fontWeight: "bold"
-                    }}
-                  >
+                  <button onClick={() => updateStatus(key, "panne")} style={{ background: "#f2c94c", padding: "6px 10px", color: "black", borderRadius: 6, border: "none", fontWeight: "bold" }}>
                     En panne
                   </button>
 
-                  <button
-                    onClick={() => updateStatus(key, "evacuation")}
-                    style={{
-                      background: "#4c88ff",
-                      padding: "6px 10px",
-                      color: "white",
-                      borderRadius: 6,
-                      border: "none",
-                      fontWeight: "bold"
-                    }}
-                  >
+                  <button onClick={() => updateStatus(key, "evacuation")} style={{ background: "#4c88ff", padding: "6px 10px", color: "white", borderRadius: 6, border: "none", fontWeight: "bold" }}>
                     Évac
                   </button>
                 </div>

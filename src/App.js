@@ -11,37 +11,44 @@ import StatutAttractions from "./pages/StatutAttractions";
 import AdminInit from "./pages/AdminInit";
 
 function App() {
-  const [user, setUser] = useState(undefined);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Date partagée Dashboard ↔ GlobalView
   const [selectedDateGlobal, setSelectedDateGlobal] = useState(null);
 
-  // Auth listener
+  // 🔐 Auth listener
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u || null));
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u || null);
+      setLoading(false);
+    });
     return () => unsub();
   }, []);
 
-  // 🔥 Correctif MAJEUR : initialisation de la date du jour
+  // 📅 Initialisation unique de la date du jour
   useEffect(() => {
-    if (!selectedDateGlobal) {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
+    if (selectedDateGlobal) return;
 
-      setSelectedDateGlobal({
-        raw: now,
-        label: now.toLocaleDateString("fr-FR"),
-        label_complet: now.toLocaleDateString("fr-FR", {
-          weekday: "long",
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        }),
-      });
-    }
-  }, [selectedDateGlobal]); // ← Correction essentielle
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-  if (user === undefined) return <div>Chargement…</div>;
+    setSelectedDateGlobal({
+      raw: now,
+      label: now.toLocaleDateString("fr-FR"),
+      label_complet: now.toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+    });
+  }, [selectedDateGlobal]);
+
+  // ⏳ Chargement auth
+  if (loading) return <div>Chargement…</div>;
+
+  // 🔒 Non connecté
   if (!user) return <Login />;
 
   return (
@@ -71,7 +78,7 @@ function App() {
         {/* Admin */}
         <Route path="/adminInit" element={<AdminInit />} />
 
-        {/* Default */}
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
