@@ -4,20 +4,27 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
+/* PAGES */
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import GlobalView from "./pages/GlobalView";
-import StatutAttractions from "./pages/StatutAttractions";
+import Dashboard from "./pages/pages_meca/Dashboard";
+import DashboardAquatique from "./pages/pages_aqua/DashboardAquatique";
+
+import GlobalViewMeca from "./pages/pages_meca/GlobalViewMeca";
+import GlobalViewAqua from "./pages/pages_aqua/GlobalViewAqua";
+
+import StatutAttractionsControlMeca from "./pages/pc_securité/StatutAttractionsControl_meca";
+import StatutAttractionsControlAqua from "./pages/pc_securité/StatutAttractionsControl_aqua";
+
 import AdminInit from "./pages/AdminInit";
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Date partagée Dashboard ↔ GlobalView
+  /* 📅 Date partagée Dashboard ↔ GlobalView */
   const [selectedDateGlobal, setSelectedDateGlobal] = useState(null);
 
-  // 🔐 Auth listener
+  /* 🔐 Auth listener */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u || null);
@@ -26,7 +33,7 @@ function App() {
     return () => unsub();
   }, []);
 
-  // 📅 Initialisation unique de la date du jour
+  /* 📅 Initialisation unique de la date */
   useEffect(() => {
     if (selectedDateGlobal) return;
 
@@ -45,40 +52,89 @@ function App() {
     });
   }, [selectedDateGlobal]);
 
-  // ⏳ Chargement auth
+  /* ⏳ Chargement auth */
   if (loading) return <div>Chargement…</div>;
 
-  // 🔒 Non connecté
+  /* 🔒 Non connecté */
   if (!user) return <Login />;
 
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* Dashboard */}
+        {/* ======================
+            DASHBOARDS
+           ====================== */}
+
+        {/* ⚙️ Dashboard MÉCANIQUE (par défaut) */}
         <Route
           path="/"
           element={<Dashboard setSelectedDateGlobal={setSelectedDateGlobal} />}
         />
 
-        {/* Vue globale */}
+        <Route
+          path="/dashboard"
+          element={<Dashboard setSelectedDateGlobal={setSelectedDateGlobal} />}
+        />
+
+        {/* 💧 Dashboard AQUATIQUE */}
+        <Route
+          path="/dashboard-aqua"
+          element={
+            <DashboardAquatique
+              setSelectedDateGlobal={setSelectedDateGlobal}
+            />
+          }
+        />
+
+        {/* ======================
+            VUES GLOBALES
+           ====================== */}
+
+        {/* 🌍 Vue globale MÉCANIQUE */}
         <Route
           path="/global"
           element={
-            <GlobalView
+            <GlobalViewMeca
               selectedDate={selectedDateGlobal}
               setSelectedDateGlobal={setSelectedDateGlobal}
             />
           }
         />
 
-        {/* PC Sécurité */}
-        <Route path="/pc-securite" element={<StatutAttractions />} />
+        {/* 🌊 Vue globale AQUATIQUE */}
+        <Route
+          path="/global-aqua"
+          element={
+            <GlobalViewAqua
+              selectedDate={selectedDateGlobal}
+              setSelectedDateGlobal={setSelectedDateGlobal}
+            />
+          }
+        />
 
-        {/* Admin */}
+        {/* ======================
+            PC SÉCURITÉ
+           ====================== */}
+
+        {/* 🚨 PC Sécurité MÉCANIQUE */}
+        <Route
+          path="/pc-securite"
+          element={<StatutAttractionsControlMeca />}
+        />
+
+        {/* 🚨 PC Sécurité AQUATIQUE */}
+        <Route
+          path="/pc-securite-aqua"
+          element={<StatutAttractionsControlAqua />}
+        />
+
+        {/* ======================
+            ADMIN
+           ====================== */}
         <Route path="/adminInit" element={<AdminInit />} />
 
-        {/* Fallback */}
+        {/* 🔁 Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>

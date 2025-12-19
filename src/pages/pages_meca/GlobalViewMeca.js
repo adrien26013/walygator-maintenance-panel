@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { db, auth } from "../../firebase";
 import { signOut } from "firebase/auth";
-import attractionsList from "../data/attractionsList";
+import attractionsList from "../../data/attractionsList";
 
 /* 🔒 NORMALISATION IDENTIQUE À FLUTTER */
 const normalizeAttraction = (s) =>
@@ -45,16 +45,15 @@ export default function GlobalView({ selectedDate }) {
   const [securityStatus, setSecurityStatus] = useState({});
   const [lastChecklistAt, setLastChecklistAt] = useState(null);
 
-  /* 🔄 Tick minute */
   const [dayTick, setDayTick] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setDayTick((x) => x + 1), 60 * 1000);
+    const t = setInterval(() => setDayTick((x) => x + 1), 60000);
     return () => clearInterval(t);
   }, []);
 
   const translateStatus = (s) => {
     if (s === "panne") return "En panne";
-    if (s === "evacuation") return "Evacuation en cours...";
+    if (s === "evacuation") return "Évacuation en cours...";
     if (s === "ouverte") return "Ouverte";
     if (s === "fermee") return "Fermée";
     return s;
@@ -63,7 +62,6 @@ export default function GlobalView({ selectedDate }) {
   const blinkStyle = { animation: "blink 1s infinite" };
   const fadeStyle = { animation: "fadeIn 0.6s ease-out" };
 
-  /* 🔥 Listener PC Sécurité */
   useEffect(() => {
     return onSnapshot(collection(db, "attractionStatus"), (snap) => {
       const map = {};
@@ -72,10 +70,8 @@ export default function GlobalView({ selectedDate }) {
     });
   }, []);
 
-  /* 🔥 Mise à jour date */
   useEffect(() => {
     if (!selectedDate?.raw) return;
-
     const d = new Date(selectedDate.raw);
     d.setHours(0, 0, 0, 0);
 
@@ -88,7 +84,6 @@ export default function GlobalView({ selectedDate }) {
     });
   }, [selectedDate, dayTick]);
 
-  /* 🔥 Listener CHECKLISTS JOURNALIÈRES (mémoire FIXÉE) */
   useEffect(() => {
     if (!effectiveDate) return;
 
@@ -108,7 +103,6 @@ export default function GlobalView({ selectedDate }) {
         if (!isSameDay(t0, effectiveDate.raw)) return;
 
         if (!latest || ts > latest) latest = ts;
-
         extractAttractionIds(d).forEach((id) => validated.add(id));
       });
 
@@ -128,13 +122,12 @@ export default function GlobalView({ selectedDate }) {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* CSS animations */}
       <style>{`
         @keyframes blink { 0%{opacity:1} 50%{opacity:.35} 100%{opacity:1} }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
       `}</style>
 
-      {/* BANNIÈRE */}
+      {/* HEADER (RESTAURÉ) */}
       <div style={{ width:"100%", height:95, background:"#235630", display:"flex", justifyContent:"center", alignItems:"center", position:"relative" }}>
         <button
           onClick={() => (window.location.href = "/")}
@@ -156,7 +149,25 @@ export default function GlobalView({ selectedDate }) {
 
       {/* CONTENU */}
       <div style={{ padding:20 }}>
-        <h1>Vue globale des attractions</h1>
+        <div style={{ display:"flex", alignItems:"center", gap:20 }}>
+          <h1>Vue globale des attractions mécaniques</h1>
+          <button
+            onClick={() => (window.location.href = "/global-aqua")}
+            style={{ background:"#1e90ff", border:"3px solid #f5c400", padding:"6px 14px", borderRadius:10, color:"white", fontWeight:"bold" }}
+          >
+            Parc aquatique
+          </button>
+        </div>
+
+        {/* LÉGENDE */}
+        <div style={{ display:"flex", gap:20, flexWrap:"wrap", margin:"10px 0 20px" }}>
+          <Legend color="#ffb5b5" label="Fermée" />
+          <Legend color="#d4ffd4" label="Ouverte" />
+          <Legend color="#fff3b0" label="En panne" />
+          <Legend color="#c3d9ff" label="Évacuation en cours" />
+          <Legend color="#d9d9d9" label="En attente de checklist" />
+        </div>
+
         <p style={{ fontSize:18 }}>
           Journée du : <strong>{effectiveDate?.label_complet}</strong>
         </p>
@@ -171,17 +182,9 @@ export default function GlobalView({ selectedDate }) {
             const manualAt = toDate(record.manual_at);
 
             let final = "fermee";
-
             if (hasChecklist) {
               final = "ouverte";
-
-              if (
-                record.manual === true &&
-                manualAt &&
-                lastChecklistAt &&
-                manualAt > lastChecklistAt &&
-                pcStatus !== "ouverte"
-              ) {
+              if (record.manual && manualAt && lastChecklistAt && manualAt > lastChecklistAt && pcStatus !== "ouverte") {
                 final = pcStatus;
               }
             }
@@ -205,12 +208,7 @@ export default function GlobalView({ selectedDate }) {
                   ...(applyBlink ? blinkStyle : applyFade ? fadeStyle : {})
                 }}
               >
-                <img
-                  src={`/attractions/${a.image}`}
-                  alt=""
-                  style={{ width:"100%", height:150, objectFit:"cover", borderRadius:10, opacity:isDisabled ? 0.45 : 1 }}
-                />
-
+                <img src={`/attractions_meca/${a.image}`} alt="" style={{ width:"100%", height:150, objectFit:"cover", borderRadius:10, opacity:isDisabled ? 0.45 : 1 }} />
                 <p style={{ marginTop:10, fontWeight:"bold" }}>{a.nom}</p>
                 <p>{isDisabled ? "En attente de checklist…" : `Statut : ${translateStatus(final)}`}</p>
               </div>
@@ -218,6 +216,15 @@ export default function GlobalView({ selectedDate }) {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Legend({ color, label }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+      <div style={{ width:16, height:16, background:color, borderRadius:4, border:"1px solid #999" }} />
+      <strong>{label}</strong>
     </div>
   );
 }

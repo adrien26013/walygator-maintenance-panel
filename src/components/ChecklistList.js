@@ -32,7 +32,12 @@ const btnDanger = {
   color: "white",
 };
 
-export default function ChecklistList({ title, checklists, onDelete }) {
+export default function ChecklistList({
+  title,
+  checklists = [],
+  onDelete,
+}) {
+
   // 🔧 crazy_bus → Crazy Bus
   const formatAttraction = (name) => {
     if (!name) return "Attraction inconnue";
@@ -42,17 +47,16 @@ export default function ChecklistList({ title, checklists, onDelete }) {
       .replace(/_/g, " ")
       .split(" ")
       .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .map(
+        (word) => word.charAt(0).toUpperCase() + word.slice(1)
+      )
       .join(" ");
   };
 
-  // ✅ Récupère l'attraction quelque soit le schéma Firestore
   const getAttractionName = (c) => {
-    // nouveau schéma : attractions: ["crazy_bus"]
     if (Array.isArray(c.attractions) && c.attractions.length > 0) {
       return c.attractions[0];
     }
-    // ancien schéma : attraction: "crazy_bus"
     if (typeof c.attraction === "string" && c.attraction.trim() !== "") {
       return c.attraction;
     }
@@ -60,7 +64,9 @@ export default function ChecklistList({ title, checklists, onDelete }) {
   };
 
   const formatDate = (timestamp) => {
-    const dateObj = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    const dateObj = timestamp?.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp);
     return dateObj.toLocaleDateString("fr-FR");
   };
 
@@ -68,9 +74,11 @@ export default function ChecklistList({ title, checklists, onDelete }) {
     <div style={{ marginTop: 20 }}>
       <h3>{title}</h3>
 
-      {(!checklists || checklists.length === 0) && <p>Aucune liste de contrôle</p>}
+      {checklists.length === 0 && (
+        <p>Aucune liste de contrôle</p>
+      )}
 
-      {checklists?.map((c) => {
+      {checklists.map((c) => {
         const attractionRaw = getAttractionName(c);
         const attraction = formatAttraction(attractionRaw);
         const date = formatDate(c.timestamp);
@@ -88,13 +96,15 @@ export default function ChecklistList({ title, checklists, onDelete }) {
               borderBottom: "1px solid #e0e0e0",
             }}
           >
-            {/* ✅ TOUT LE TEXTE EN GRAS */}
             <span style={{ flex: 1, fontWeight: 800 }}>
               {label}
             </span>
 
             {c.pdf_url && (
-              <button style={btnOutline} onClick={() => window.open(c.pdf_url, "_blank")}>
+              <button
+                style={btnOutline}
+                onClick={() => window.open(c.pdf_url, "_blank")}
+              >
                 👁 Voir
               </button>
             )}
@@ -131,7 +141,10 @@ export default function ChecklistList({ title, checklists, onDelete }) {
               </button>
             )}
 
-            <button style={btnDanger} onClick={() => onDelete?.(c)}>
+            <button
+              style={btnDanger}
+              onClick={() => onDelete?.(c)}
+            >
               🗑 Supprimer
             </button>
           </div>
