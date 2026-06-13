@@ -66,7 +66,7 @@ export default function OperationAqua({ selectedDate }) {
   const [nonSignedAttractions, setNonSignedAttractions] = useState([]);
   const [securityStatus, setSecurityStatus] = useState({});
   const [nonSignedDetails, setNonSignedDetails] = useState({});
-  const [opDoneGroups, setOpDoneGroups] = useState([]);
+  const [opDoneGroups, setOpDoneGroups] = useState({});
   const lastDayRef = useRef(null);
 
   const navigate = useNavigate();
@@ -121,7 +121,7 @@ setSecurityStatus(map);
     const signed = new Set();
     const nonSigned = new Set();
     const nonSignedMap = {};
-    const opDone = new Set();
+    const opDone = {};
 
     snap.forEach((docSnap) => {
       const d = docSnap.data();
@@ -131,7 +131,7 @@ setSecurityStatus(map);
         if (ts) {
           const t0 = new Date(ts); t0.setHours(0, 0, 0, 0);
           if (t0.getTime() === today.getTime()) {
-            opDone.add(normalizeAttraction(d.attraction || ""));
+            opDone[normalizeAttraction(d.attraction || "")] = d.pdf_url || null;
           }
         }
       }
@@ -211,7 +211,7 @@ setSecurityStatus(map);
     setValidatedAttractions([...validated]);
     setNonSignedAttractions([...nonSigned]);
     setNonSignedDetails(nonSignedMap);
-    setOpDoneGroups([...opDone]);
+    setOpDoneGroups({...opDone});
   });
 }, [effectiveDate]);
 
@@ -517,10 +517,22 @@ setSecurityStatus(map);
       {statusLabel}
     </p>
 
-    {opDoneGroups.includes(group) && (
-      <p style={{ fontSize: 11, color: "#1a7f3c", fontWeight: "bold", margin: "2px 0 0 0" }}>
-        ✓ Opérationnel validé
-      </p>
+    {group in opDoneGroups && (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, marginTop: 2 }}>
+        <p style={{ fontSize: 11, color: "#1a7f3c", fontWeight: "bold", margin: 0 }}>
+          ✓ Opérationnel validé
+        </p>
+        {opDoneGroups[group] && (
+          <a
+            href={opDoneGroups[group]}
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 11, color: "#0055cc", textDecoration: "underline" }}
+          >
+            📄 Voir PDF
+          </a>
+        )}
+      </div>
     )}
 
     {isNonSigned && motif && (
