@@ -6,11 +6,11 @@ const attractionsList = [
   { nom: "Crazy Bus", image: "crazy_bus.jpg" },
   { nom: "Coccinelle", image: "coccinelle.jpg" },
   { nom: "Mine de Thor", image: "mine_de_thor.jpg" },
-  { nom: "Midgar", image: "midgar.jpg" },
+  { nom: "Midgard", image: "midgar.jpg" },
   { nom: "Drakkar", image: "drakkar.jpg" },
   { nom: "Île aux Pirates", image: "ile_aux_pirates.webp" },
   { nom: "Express Tour", image: "express_tour.jpg" },
-  { nom: "Bubble Up", image: "bubble_up.jpg" },
+  { nom: "Bubbles Up", image: "bubble_up.jpg" },
   { nom: "Chaises Volantes", image: "chaises_volantes.jpg" },
   { nom: "Aquachutes", image: "aquachutes.jpg" },
   { nom: "Boomerang", image: "boomerang.jpg" },
@@ -18,10 +18,11 @@ const attractionsList = [
   { nom: "Tea Cup", image: "tea_cup.jpg" },
   { nom: "Bateau Pirate", image: "bateau_pirate.jpg" },
   { nom: "Radja River", image: "radja_river.jpg" },
-  { nom: "Holociné", image: "holociné.jpg" },
+  //{ nom: "Holociné", image: "holociné.jpg" },
   { nom: "Splash Battle", image: "splash_battle.jpeg" },
-  { nom: "Water Place", image: "water_place.jpg" },
   { nom: "Dark Tower", image: "dark_tower.jpg" },
+  { nom: "Water Place", image: "water_place.jpg" },
+  { nom: "Titan", image: "titan.jpg", comingSoon: true },
 ];
 
 export default attractionsList;
