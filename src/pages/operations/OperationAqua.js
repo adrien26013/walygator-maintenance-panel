@@ -66,6 +66,7 @@ export default function OperationAqua({ selectedDate }) {
   const [nonSignedAttractions, setNonSignedAttractions] = useState([]);
   const [securityStatus, setSecurityStatus] = useState({});
   const [nonSignedDetails, setNonSignedDetails] = useState({});
+  const [opDoneGroups, setOpDoneGroups] = useState([]);
   const lastDayRef = useRef(null);
 
   const navigate = useNavigate();
@@ -120,9 +121,21 @@ setSecurityStatus(map);
     const signed = new Set();
     const nonSigned = new Set();
     const nonSignedMap = {};
+    const opDone = new Set();
 
     snap.forEach((docSnap) => {
       const d = docSnap.data();
+
+      if (d?.type === "operationnelle" && d.signed === true && d.zone?.toLowerCase().includes("aquatique")) {
+        const ts = toDate(d.timestamp);
+        if (ts) {
+          const t0 = new Date(ts); t0.setHours(0, 0, 0, 0);
+          if (t0.getTime() === today.getTime()) {
+            opDone.add(normalizeAttraction(d.attraction || ""));
+          }
+        }
+      }
+
       if (d?.type !== "journaliere") return;
       if (!d.zone?.toLowerCase().includes("aquatique")) return;
 
@@ -198,6 +211,7 @@ setSecurityStatus(map);
     setValidatedAttractions([...validated]);
     setNonSignedAttractions([...nonSigned]);
     setNonSignedDetails(nonSignedMap);
+    setOpDoneGroups([...opDone]);
   });
 }, [effectiveDate]);
 
@@ -398,6 +412,8 @@ setSecurityStatus(map);
   final = "checklist_en_cours";
 } else if (!hasChecklist && pcStatus === "pre_ouverte") {
             final = "pre_ouverte";
+          } else if (!hasChecklist && record.manual === true) {
+            final = pcStatus || "fermee";
           } else if (!hasChecklist) {
             final = "attente_checklist";
           } else if (isNonSigned) {
@@ -500,6 +516,12 @@ setSecurityStatus(map);
     >
       {statusLabel}
     </p>
+
+    {opDoneGroups.includes(group) && (
+      <p style={{ fontSize: 11, color: "#1a7f3c", fontWeight: "bold", margin: "2px 0 0 0" }}>
+        ✓ Opérationnel validé
+      </p>
+    )}
 
     {isNonSigned && motif && (
       <p
