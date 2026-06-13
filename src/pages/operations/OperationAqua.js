@@ -1,5 +1,6 @@
 import { collection, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../../firebase";
+import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import attractionsListAqua from "../../data/attractionsListAqua";
 import React, { useEffect, useState, useRef } from "react";
@@ -58,13 +59,16 @@ function Legend({ color, label }) {
   );
 }
 
-export default function GlobalViewAqua({ selectedDate }) {
+export default function OperationAqua({ selectedDate }) {
   console.log("🟢 [GLOBAL AQUA] render");
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [validatedAttractions, setValidatedAttractions] = useState([]);
   const [nonSignedAttractions, setNonSignedAttractions] = useState([]);
   const [securityStatus, setSecurityStatus] = useState({});
+  const [nonSignedDetails, setNonSignedDetails] = useState({});
   const lastDayRef = useRef(null);
+
+  const navigate = useNavigate();
 
   /* 🔄 Tick identique méca */
   const [dayTick, setDayTick] = useState(0);
@@ -115,6 +119,7 @@ setSecurityStatus(map);
     const validated = new Set();
     const signed = new Set();
     const nonSigned = new Set();
+    const nonSignedMap = {};
 
     snap.forEach((docSnap) => {
       const d = docSnap.data();
@@ -145,18 +150,24 @@ setSecurityStatus(map);
         validated.add(id);
 
         if (d.signed === true) {
-          signed.add(id);
-        } else {
-          if (refused.length > 0) {
-            if (refused.includes(id)) {
-              nonSigned.add(id);
-            } else {
-              signed.add(id);
-            }
-          } else {
-            nonSigned.add(id);
-          }
-        }
+  signed.add(id);
+} else {
+  if (refused.length > 0) {
+    if (refused.includes(id)) {
+      nonSigned.add(id);
+
+      nonSignedMap[id] =
+        d.refusalReason || "Aucun motif";
+    } else {
+      signed.add(id);
+    }
+  } else {
+    nonSigned.add(id);
+
+    nonSignedMap[id] =
+      d.refusalReason || "Aucun motif";
+  }
+}
       });
     });
 
@@ -170,10 +181,23 @@ setSecurityStatus(map);
 
       if (allValidated) validated.add(group);
       if (allNonSigned) nonSigned.add(group);
+      if (allNonSigned) {
+  nonSigned.add(group);
+
+  // récupérer un motif d’un enfant
+  const firstChild = children.find((c) =>
+    nonSignedMap[c]
+  );
+
+  if (firstChild) {
+    nonSignedMap[group] = nonSignedMap[firstChild];
+  }
+}
     });
 
     setValidatedAttractions([...validated]);
     setNonSignedAttractions([...nonSigned]);
+    setNonSignedDetails(nonSignedMap);
   });
 }, [effectiveDate]);
 
@@ -293,7 +317,7 @@ setSecurityStatus(map);
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
         <h1>Vue globale des attractions aquatiques</h1>
         <button
-          onClick={() => (window.location.href = "/global")}
+          onClick={() => navigate("/operations-meca")}
           style={{
             background: "#235630",
             border: "3px solid #f5c400",
@@ -363,6 +387,10 @@ setSecurityStatus(map);
 
           const pcStatus = record.status;
 
+          const motif =
+  nonSignedDetails[id] ||
+  nonSignedDetails[group];
+
           let final = "fermee";
           let forcedMessage = null;
 
@@ -411,69 +439,96 @@ setSecurityStatus(map);
 
           return (
             <div
-              key={a.nom}
-              style={{
-                background:
-  final === "checklist_en_cours"
-    ? colors.checklist_en_cours
-    : isDisabled
-    ? "#d9d9d9"
-    : bg,
-                opacity: isDisabled ? 0.55 : 1,
-                borderRadius: 14,
-                padding: 12,
-                height: 230,
-                textAlign: "center",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                ...(applyBlink
-                  ? blinkStyle
-                  : applyFade
-                  ? fadeStyle
-                  : {})
-              }}
-            >
-              <img
-                src={`/attractions_aqua/${a.image}`}
-                alt=""
-                style={{
-                  width: "100%",
-                  height: 150,
-                  objectFit: "cover",
-                  borderRadius: 10,
-                  opacity: isDisabled ? 0.45 : 1
-                }}
-              />
+  key={a.nom}
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    height: 260,
+    borderRadius: 14,
+    padding: 12,
+    background:
+      final === "checklist_en_cours"
+        ? colors.checklist_en_cours
+        : isDisabled
+        ? "#d9d9d9"
+        : bg,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+    overflow: "hidden",
+    opacity: isDisabled ? 0.55 : 1,
+    ...(applyBlink
+      ? blinkStyle
+      : applyFade
+      ? fadeStyle
+      : {}),
+  }}
+>
+  {/* IMAGE */}
+  <img
+    src={`/attractions_aqua/${a.image}`}
+    alt=""
+    style={{
+      width: "100%",
+      height: 130,
+      objectFit: "cover",
+      borderRadius: 10,
+      opacity: isDisabled ? 0.45 : 1,
+    }}
+  />
 
-              <p style={{ marginTop: 10, fontWeight: "bold" }}>
-                {a.nom}
-              </p>
+  {/* CONTENU */}
+  <div
+    style={{
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 4,
+      textAlign: "center",
+    }}
+  >
+    <p style={{ fontWeight: "bold", marginTop: 8 }}>
+      {a.nom}
+    </p>
 
-              <p
-                style={{
-                  fontWeight: forcedMessage ? "bold" : "normal",
-                  color: forcedMessage ? "#b00000" : "inherit",
-                  fontSize: 13
-                }}
-              >
-                {statusLabel}
-              </p>
+    <p
+      style={{
+        fontWeight: forcedMessage ? "bold" : "normal",
+        color: forcedMessage ? "#b00000" : "inherit",
+        fontSize: 13,
+      }}
+    >
+      {statusLabel}
+    </p>
 
-              {record.manual === true && record.status === "fermee" && record.raison_fermeture && (
-                <p style={{
-                  fontSize: 11,
-                  color: "#333",
-                  fontStyle: "italic",
-                  overflow: "hidden",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                }}>
-                  Raison : {record.raison_fermeture}
-                </p>
-              )}
-            </div>
-          );
-        })}
+    {isNonSigned && motif && (
+      <p
+        style={{
+          fontSize: 12,
+          color: "#333",
+          fontStyle: "italic",
+          maxWidth: "90%",
+
+          /* 🔥 anti débordement propre */
+          overflow: "hidden",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+        }}
+      >
+                Motif : {motif}
+      </p>
+    )}
+    {final === "fermee" && record.manual === true && record.raison_fermeture && (
+      <p style={{ fontSize: 11, color: "#550000", fontStyle: "italic", overflow: "hidden",
+                   display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+        Raison : {record.raison_fermeture}
+      </p>
+    )}
+  </div>
+</div>
+);
+})}
       </div>
     </div>
   </div>
