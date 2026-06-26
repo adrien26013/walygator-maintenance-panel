@@ -223,6 +223,30 @@ code {
   color: #ff9090 !important;
 }
 
+/* ============= AQUA THEME ============= */
+.ph-mobile-drawer--aqua {
+  background: #061e4a;
+}
+
+.ph-mobile-drawer--aqua .ph-mobile-drawer-header {
+  background: #0b4fa3;
+}
+
+.ph-mobile-drawer--aqua .ph-mobile-nav-btn {
+  background: rgba(30, 144, 255, 0.25);
+  border-color: rgba(245, 196, 0, 0.25);
+}
+
+.ph-mobile-drawer--aqua .ph-mobile-nav-btn:active {
+  background: rgba(30, 144, 255, 0.55);
+}
+
+.ph-mobile-drawer--aqua .ph-mobile-nav-btn-active {
+  background: #f5c400 !important;
+  color: #061e4a !important;
+  border-color: #f5c400 !important;
+}
+
 /* ===================== PANEL RESPONSIVE CONTENT ===================== */
 .ph-content {
   display: flex;

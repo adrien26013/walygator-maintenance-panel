@@ -223,6 +223,7 @@ export default function GlobalViewAqua({ selectedDate }) {
 
       {mobileMenuOpen && (
         <MobileNavDrawer
+          theme="aqua"
           onClose={() => setMobileMenuOpen(false)}
           items={[
             { label: "← Retour Panel", onClick: () => navigate("/") },

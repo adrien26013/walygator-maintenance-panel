@@ -1,7 +1,8 @@
-export default function MobileNavDrawer({ items, onClose }) {
+export default function MobileNavDrawer({ items, onClose, theme }) {
+  const aqua = theme === "aqua";
   return (
     <div className="ph-mobile-overlay" onClick={onClose}>
-      <div className="ph-mobile-drawer" onClick={(e) => e.stopPropagation()}>
+      <div className={`ph-mobile-drawer${aqua ? " ph-mobile-drawer--aqua" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="ph-mobile-drawer-header">
           <span>NAVIGATION</span>
           <button className="ph-mobile-close" onClick={onClose}>✕</button>

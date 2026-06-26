@@ -215,6 +215,7 @@ export default function DashboardAqua({ setSelectedDateGlobal }) {
     <div>
       {mobileMenuOpen && (
         <MobileNavDrawer
+          theme="aqua"
           onClose={() => setMobileMenuOpen(false)}
           items={[
             { label: "Codes secrets", onClick: () => navigate("/codes-secrets") },
