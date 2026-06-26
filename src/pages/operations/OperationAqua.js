@@ -79,6 +79,10 @@ export default function OperationAqua({ selectedDate }) {
   const [analyseEauxList, setAnalyseEauxList] = useState([]);
   const [backwashList, setBackwashList] = useState([]);
 
+  const [dateFromOp, setDateFromOp] = useState(null);
+  const [dateToOp, setDateToOp] = useState(null);
+  const [isDownloadingOp, setIsDownloadingOp] = useState(false);
+
   const navigate = useNavigate();
 
   /* 🔄 Tick identique méca */
@@ -306,6 +310,29 @@ setSecurityStatus(map);
   }, [calDate]);
 
   const handleLogout = async () => await signOut(auth);
+
+  const handleDownloadZipOp = async () => {
+    if (!dateFromOp || !dateToOp) return;
+    setIsDownloadingOp(true);
+    try {
+      const url = "https://downloadchecklistszip-siuqyxtfpq-ew.a.run.app" +
+        `?dateFrom=${dateFromOp}&dateTo=${dateToOp}&parc=aqua_op`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `checklists_aqua_op_du_${dateFromOp}_au_${dateToOp}.zip`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error("Erreur ZIP:", e);
+      alert("Erreur lors du téléchargement du ZIP");
+    } finally {
+      setIsDownloadingOp(false);
+    }
+  };
 
   const colors = {
   fermee: "#ffb5b5",
@@ -630,6 +657,22 @@ setSecurityStatus(map);
           </div>
 
           <div style={{ flex: 1, minWidth: 300 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16, padding: "12px 16px", background: "#e8f0fe", borderRadius: 10, border: "1.5px solid #1e90ff" }}>
+              <span style={{ fontWeight: "bold", color: "#0b4fa3" }}>⬇ Télécharger ZIP opérationnel :</span>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                <input type="date" value={dateFromOp || ""} onChange={(e) => setDateFromOp(e.target.value)} style={{ border: "1px solid #ccc", borderRadius: 6, padding: "4px 8px" }} />
+                <span style={{ color: "#555" }}>→</span>
+                <input type="date" value={dateToOp || ""} onChange={(e) => setDateToOp(e.target.value)} style={{ border: "1px solid #ccc", borderRadius: 6, padding: "4px 8px" }} />
+                <button
+                  onClick={handleDownloadZipOp}
+                  disabled={!dateFromOp || !dateToOp || isDownloadingOp}
+                  style={{ background: (!dateFromOp || !dateToOp || isDownloadingOp) ? "#aaa" : "#0b4fa3", color: "white", border: "none", borderRadius: 8, padding: "6px 14px", fontWeight: "bold", cursor: isDownloadingOp ? "wait" : "pointer" }}
+                >
+                  {isDownloadingOp ? "ZIP..." : "⬇ ZIP"}
+                </button>
+              </div>
+            </div>
+
             <h2 style={{ marginTop: 0, color: "#0b4fa3" }}>
               Checklists du {calDate?.label_complet}
             </h2>
