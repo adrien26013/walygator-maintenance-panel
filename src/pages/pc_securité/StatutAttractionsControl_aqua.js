@@ -15,6 +15,7 @@ import { signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { deleteField } from "firebase/firestore";
 import attractionsListAqua from "../../data/attractionsListAqua";
+import MobileNavDrawer from "../../components/MobileNavDrawer";
 
 /* 🔒 NORMALISATION IDENTIQUE */
 const normalizeAttraction = (s) =>
@@ -60,6 +61,7 @@ const toDate = (ts) => {
 
 export default function StatutAttractionsControlAqua() {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [statuses, setStatuses] = useState({});
   const [validatedToday, setValidatedToday] = useState(new Set());
@@ -478,6 +480,11 @@ const formatDuration = (incident) => {
           style={{ height: 70 }}
         />
 
+        {/* Hamburger mobile */}
+        <button className="ph-hamburger" onClick={() => setMobileMenuOpen(true)}>
+          <span /><span /><span />
+        </button>
+
         <div className="ph-right">
           <button
             onClick={handleLogout}
@@ -487,6 +494,19 @@ const formatDuration = (incident) => {
           </button>
         </div>
       </div>
+
+      {mobileMenuOpen && (
+        <MobileNavDrawer
+          onClose={() => setMobileMenuOpen(false)}
+          items={[
+            { label: "← Retour Panel", onClick: () => navigate("/") },
+            { label: "Parc mécanique", onClick: () => navigate("/pc-securite") },
+            { label: "Parc aquatique", onClick: () => {}, active: true },
+            "separator",
+            { label: "Déconnexion", onClick: handleLogout, danger: true },
+          ]}
+        />
+      )}
 
       <div style={{ padding: 20 }}>
         <h1>PC Sécurité — Attractions aquatiques</h1>

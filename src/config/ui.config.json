@@ -1,0 +1,50 @@
+{
+  "mobileBreakpoint": 768,
+
+  "header": {
+    "mobile": {
+      "height": 56,
+      "showBurger": true,
+      "showLogo": true,
+      "buttonsInMenu": true
+    },
+    "desktop": {
+      "height": 90,
+      "buttonsInline": true
+    }
+  },
+
+  "layout": {
+    "mobile": {
+      "direction": "column",
+      "maxWidth": "100%",
+      "padding": 12
+    },
+    "desktop": {
+      "direction": "row",
+      "maxWidth": 1200,
+      "padding": 24
+    }
+  },
+
+  "checklists": {
+    "mobile": {
+      "buttonsLayout": "column",
+      "buttonSize": "large"
+    },
+    "desktop": {
+      "buttonsLayout": "row",
+      "buttonSize": "small"
+    }
+  },
+
+  "cta": {
+    "mobile": {
+      "sticky": true,
+      "position": "bottom"
+    },
+    "desktop": {
+      "sticky": false
+    }
+  }
+}

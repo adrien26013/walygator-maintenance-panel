@@ -1,9 +1,12 @@
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db, auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import attractionsListAqua from "../../data/attractionsListAqua";
 import React, { useEffect, useState, useRef } from "react";
+import Calendar from "../../components/Calendar";
+import ChecklistList from "../../components/ChecklistList";
+import MobileNavDrawer from "../../components/MobileNavDrawer";
 
 /* 🔒 NORMALISATION IDENTIQUE */
 const normalizeAttraction = (s) =>
@@ -61,6 +64,7 @@ function Legend({ color, label }) {
 
 export default function OperationAqua({ selectedDate }) {
   console.log("🟢 [GLOBAL AQUA] render");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [effectiveDate, setEffectiveDate] = useState(null);
   const [validatedAttractions, setValidatedAttractions] = useState([]);
   const [nonSignedAttractions, setNonSignedAttractions] = useState([]);
@@ -68,6 +72,12 @@ export default function OperationAqua({ selectedDate }) {
   const [nonSignedDetails, setNonSignedDetails] = useState({});
   const [opDoneGroups, setOpDoneGroups] = useState({});
   const lastDayRef = useRef(null);
+
+  const [calDate, setCalDate] = useState(null);
+  const calLastDayRef = useRef(null);
+  const [opChecklists, setOpChecklists] = useState([]);
+  const [analyseEauxList, setAnalyseEauxList] = useState([]);
+  const [backwashList, setBackwashList] = useState([]);
 
   const navigate = useNavigate();
 
@@ -230,6 +240,71 @@ setSecurityStatus(map);
     });
   }, [selectedDate, dayTick]);
 
+  /* 📅 Init calendrier aujourd'hui */
+  useEffect(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const obj = {
+      raw: now,
+      label: now.toLocaleDateString("fr-FR"),
+      label_complet: now.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }),
+    };
+    calLastDayRef.current = now;
+    setCalDate(obj);
+  }, []);
+
+  const handleCalDateSelect = (obj) => {
+    const full = {
+      ...obj,
+      label_complet: obj.raw.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }),
+    };
+    calLastDayRef.current = full.raw;
+    setCalDate(full);
+  };
+
+  /* 🔥 Checklists opérationnelles */
+  useEffect(() => {
+    if (!calDate) return;
+    const start = new Date(calDate.raw); start.setHours(0, 0, 0, 0);
+    const end = new Date(calDate.raw); end.setHours(23, 59, 59, 999);
+    const q = query(collection(db, "checklists"),
+      where("timestamp", ">=", start), where("timestamp", "<=", end),
+      where("parc", "==", "aqua"), where("type", "==", "operationnelle"));
+    return onSnapshot(q, (snap) => {
+      const out = [];
+      snap.forEach((d) => out.push({ id: d.id, ...d.data() }));
+      setOpChecklists(out);
+    });
+  }, [calDate]);
+
+  /* 🔥 Analyse des eaux */
+  useEffect(() => {
+    if (!calDate) return;
+    const start = new Date(calDate.raw); start.setHours(0, 0, 0, 0);
+    const end = new Date(calDate.raw); end.setHours(23, 59, 59, 999);
+    const q = query(collection(db, "analyse_eaux"),
+      where("timestamp", ">=", start), where("timestamp", "<=", end));
+    return onSnapshot(q, (snap) => {
+      const out = [];
+      snap.forEach((d) => out.push({ id: d.id, ...d.data() }));
+      setAnalyseEauxList(out);
+    });
+  }, [calDate]);
+
+  /* 🔥 Backwash */
+  useEffect(() => {
+    if (!calDate) return;
+    const start = new Date(calDate.raw); start.setHours(0, 0, 0, 0);
+    const end = new Date(calDate.raw); end.setHours(23, 59, 59, 999);
+    const q = query(collection(db, "backwash"),
+      where("timestamp", ">=", start), where("timestamp", "<=", end));
+    return onSnapshot(q, (snap) => {
+      const out = [];
+      snap.forEach((d) => out.push({ id: d.id, ...d.data() }));
+      setBackwashList(out);
+    });
+  }, [calDate]);
+
   const handleLogout = async () => await signOut(auth);
 
   const colors = {
@@ -274,56 +349,37 @@ setSecurityStatus(map);
       }
     `}</style>
 
-    {/* HEADER */}
-    <div
-      style={{
-        width: "100%",
-        height: 95,
-        background: "#0b4fa3",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        position: "relative"
-      }}
-    >
-      <button
-        onClick={() => (window.location.href = "/")}
-        style={{
-          position: "absolute",
-          left: 20,
-          background: "#1e90ff",
-          border: "3px solid #f5c400",
-          padding: "8px 18px",
-          borderRadius: 10,
-          color: "white",
-          fontWeight: "bold"
-        }}
-      >
-        ← Retour Panel
-      </button>
-
-      <img
-        src="/logo_walygator_aquatique_maintenance.png"
-        style={{ height: 70 }}
-        alt=""
+    {mobileMenuOpen && (
+      <MobileNavDrawer
+        onClose={() => setMobileMenuOpen(false)}
+        items={[
+          { label: "← Retour Panel", onClick: () => navigate("/") },
+          { label: "Parc mécanique", onClick: () => navigate("/operations-meca") },
+          "separator",
+          { label: "Déconnexion", onClick: handleLogout, danger: true },
+        ]}
       />
+    )}
 
-      <button
-        onClick={handleLogout}
-        style={{
-          position: "absolute",
-          right: 20,
-          background: "transparent",
-          border: "none",
-          cursor: "pointer"
-        }}
-      >
-        <img
-          src="/logout_door.png"
-          style={{ height: 32, filter: "invert(1)" }}
-          alt=""
-        />
+    {/* HEADER */}
+    <div className="ph-header" style={{ backgroundColor: "#0b4fa3" }}>
+      <div className="ph-left">
+        <button onClick={() => navigate("/")} style={{ background:"#1e90ff", border:"3px solid #f5c400", padding:"8px 18px", borderRadius:10, color:"white", fontWeight:"bold" }}>
+          ← Retour Panel
+        </button>
+        <button onClick={() => navigate("/operations-meca")} style={{ background:"#235630", border:"3px solid #f5c400", padding:"8px 14px", borderRadius:10, color:"white", fontWeight:"bold" }}>
+          Parc mécanique
+        </button>
+      </div>
+      <img src="/logo_walygator_aquatique_maintenance.png" className="ph-logo" style={{ height:70 }} alt="" />
+      <button className="ph-hamburger" onClick={() => setMobileMenuOpen(true)}>
+        <span /><span /><span />
       </button>
+      <div className="ph-right">
+        <button onClick={handleLogout} style={{ background:"transparent", border:"none", cursor:"pointer" }}>
+          <img src="/logout_door.png" style={{ height:32, filter:"invert(1)" }} alt="" />
+        </button>
+      </div>
     </div>
 
     {/* CONTENU */}
@@ -563,6 +619,90 @@ setSecurityStatus(map);
 </div>
 );
 })}
+      </div>
+
+      {/* ===================== CALENDRIER + CHECKLISTS ===================== */}
+      <div style={{ borderTop: "2px solid #e0e0e0", marginTop: 8 }}>
+        <div style={{ display: "flex", padding: 20, gap: 40, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 280, flex: "0 0 38%" }}>
+            <Calendar onDateSelect={handleCalDateSelect} />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 300 }}>
+            <h2 style={{ marginTop: 0, color: "#0b4fa3" }}>
+              Checklists du {calDate?.label_complet}
+            </h2>
+
+            {/* Checklists opérationnelles */}
+            <ChecklistList title="Checklists opérationnelles" checklists={opChecklists} />
+
+            {/* Analyse des eaux */}
+            <div style={{ marginTop: 24 }}>
+              <h3 style={{ color: "#00838F", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                🧪 Analyse des eaux
+                <span style={{ background: "#00838F", color: "white", borderRadius: 12, padding: "2px 10px", fontSize: 13 }}>
+                  {analyseEauxList.length}
+                </span>
+              </h3>
+              {analyseEauxList.length === 0 ? (
+                <p style={{ color: "#888", fontStyle: "italic" }}>Aucune analyse enregistrée pour ce jour.</p>
+              ) : (
+                analyseEauxList.map((a) => (
+                  <div key={a.id} style={{ border: "1.5px solid #00838F", borderRadius: 10, padding: "10px 14px", marginBottom: 8, backgroundColor: "#f0fdfd" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong style={{ color: "#00838F" }}>
+                        {a.prenom} {a.nom}{a.periode ? ` — ${a.periode}` : ""}
+                      </strong>
+                      <span style={{ fontSize: 12, color: "#666" }}>
+                        {a.heureReleve || (a.timestamp?.toDate ? a.timestamp.toDate().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "")}
+                      </span>
+                    </div>
+                    {a.observations && <p style={{ margin: "4px 0 0", fontSize: 13, color: "#444" }}>{a.observations}</p>}
+                    {a.pdf_url && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <a href={a.pdf_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: "4px 10px", border: "1px solid #00838F", borderRadius: 6, color: "#00838F", textDecoration: "none" }}>👁 Voir</a>
+                        <a href={a.pdf_url} download style={{ fontSize: 12, padding: "4px 10px", border: "1px solid #00838F", borderRadius: 6, color: "#00838F", textDecoration: "none" }}>⬇ Télécharger</a>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Backwash */}
+            <div style={{ marginTop: 16 }}>
+              <h3 style={{ color: "#1565C0", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                💧 Backwash / Pré-filtre
+                <span style={{ background: "#1565C0", color: "white", borderRadius: 12, padding: "2px 10px", fontSize: 13 }}>
+                  {backwashList.length}
+                </span>
+              </h3>
+              {backwashList.length === 0 ? (
+                <p style={{ color: "#888", fontStyle: "italic" }}>Aucun backwash enregistré pour ce jour.</p>
+              ) : (
+                backwashList.map((b) => (
+                  <div key={b.id} style={{ border: "1.5px solid #1565C0", borderRadius: 10, padding: "10px 14px", marginBottom: 8, backgroundColor: "#f0f4ff" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong style={{ color: "#1565C0" }}>
+                        {b.lt || "LT non précisé"}{b.nom ? ` — ${b.prenom || ""} ${b.nom}` : ""}
+                      </strong>
+                      <span style={{ fontSize: 12, color: "#666" }}>
+                        {b.timestamp?.toDate ? b.timestamp.toDate().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""}
+                      </span>
+                    </div>
+                    {b.observations && <p style={{ margin: "4px 0 0", fontSize: 13, color: "#444" }}>{b.observations}</p>}
+                    {b.pdf_url && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <a href={b.pdf_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: "4px 10px", border: "1px solid #1565C0", borderRadius: 6, color: "#1565C0", textDecoration: "none" }}>👁 Voir</a>
+                        <a href={b.pdf_url} download style={{ fontSize: 12, padding: "4px 10px", border: "1px solid #1565C0", borderRadius: 6, color: "#1565C0", textDecoration: "none" }}>⬇ Télécharger</a>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

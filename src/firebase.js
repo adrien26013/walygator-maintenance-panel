@@ -1,18 +1,18 @@
-// src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAQ9IvVqGItzL601CpdsZrDtRab0-o2arg",
-  authDomain: "walygator-maintenance.firebaseapp.com",
-  projectId: "walygator-maintenance",
-  storageBucket: "walygator-maintenance.appspot.com",
-  messagingSenderId: "582768149805",
-  appId: "1:582768149805:web:a294215ea2aa189506ffa4"
+  apiKey: "AIzaSyC67Ge8taCDko7dNY22sGHT1ko6EjV2WNg",
+  authDomain: "walygator-maintenance-6a19d.firebaseapp.com",
+  projectId: "walygator-maintenance-6a19d",
+  storageBucket: "walygator-maintenance-6a19d.firebasestorage.app",
+  messagingSenderId: "1029091041183",
+  appId: "1:1029091041183:web:b45f1ecdb22b4b6f4467aa"
 };
 
 const app = initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
+// ✅ EXPORTS IMPORTANTS
 export const auth = getAuth(app);
+export const db = getFirestore(app);

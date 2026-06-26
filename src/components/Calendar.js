@@ -1,4 +1,3 @@
-// src/components/Calendar.js
 import React, { useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -9,16 +8,11 @@ export default function Calendar({ onDateSelect }) {
   const [highlightEvent, setHighlightEvent] = useState([]);
 
   const handleDateClick = (info) => {
-    // ⚠️ FullCalendar renvoie une date en UTC → on reconstruit en LOCAL
-    const parts = info.dateStr.split("-"); // "2025-12-09"
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // JS = 0 → janvier
-    const day = parseInt(parts[2], 10);
+    const [year, month, day] = info.dateStr.split("-").map(Number);
 
-    const dateObj = new Date(year, month, day);
-    dateObj.setHours(0, 0, 0, 0); // 🔥 Normalisation
+    const dateObj = new Date(year, month - 1, day);
+    dateObj.setHours(0, 0, 0, 0);
 
-    // Format JJ/MM/YYYY
     const formatted =
       ("0" + dateObj.getDate()).slice(-2) +
       "/" +
@@ -26,17 +20,14 @@ export default function Calendar({ onDateSelect }) {
       "/" +
       dateObj.getFullYear();
 
-    // Envoi vers Dashboard → 100% propre, pas d’UTC
     onDateSelect({
       raw: dateObj,
       label: formatted,
     });
 
-    // Surbrillance du jour choisi
     setHighlightEvent([
       {
         id: "selected-day",
-        title: "",
         start: info.dateStr,
         allDay: true,
         display: "background",
@@ -46,20 +37,60 @@ export default function Calendar({ onDateSelect }) {
   };
 
   return (
-    <FullCalendar
-      plugins={[dayGridPlugin, interactionPlugin]}
-      initialView="dayGridMonth"
-      locale={frLocale}
-      firstDay={1}
-      dateClick={handleDateClick}
-      events={highlightEvent}
-      height={500}
-      dayMaxEventRows={true}
-      headerToolbar={{
-        left: "prev,next today",
-        center: "title",
-        right: "",
-      }}
-    />
+    <>
+      {/* 🎨 UI — centrage parfait du numéro aujourd’hui */}
+      <style>{`
+  /* 🔥 CENTRAGE GLOBAL DE TOUS LES JOURS */
+  .fc-daygrid-day-frame {
+    display: grid;
+    place-items: center;
+  }
+
+  /* Supprimer l’alignement par défaut */
+  .fc-daygrid-day-top {
+    position: static;
+  }
+
+  /* Numéro standard (tous les jours) */
+  .fc-daygrid-day-number {
+    font-weight: 600;
+    color: #000;
+  }
+
+  /* Fond léger aujourd’hui */
+  .fc-daygrid-day.fc-day-today {
+    background-color: #23563022 !important;
+  }
+
+  /* Badge du jour J */
+  .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+    background-color: #235630;
+    color: white !important;
+    font-weight: 900;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+`}</style>
+
+      <FullCalendar
+        plugins={[dayGridPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        locale={frLocale}
+        firstDay={1}
+        dateClick={handleDateClick}
+        events={highlightEvent}
+        height={500}
+        dayMaxEventRows={true}
+        headerToolbar={{
+          left: "prev,next today",
+          center: "title",
+          right: "",
+        }}
+      />
+    </>
   );
 }

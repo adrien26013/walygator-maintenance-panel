@@ -1,0 +1,14 @@
+{
+  "mobile": {
+    "containerPadding": "12px",
+    "headerHeight": 64,
+    "stackDirection": "column",
+    "calendarScale": 0.9
+  },
+  "desktop": {
+    "containerPadding": "24px",
+    "headerHeight": 95,
+    "stackDirection": "row",
+    "calendarScale": 1
+  }
+}
