@@ -111,65 +111,116 @@ code {
 .ph-mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 2000;
   display: flex;
   justify-content: flex-end;
+  animation: phFadeIn 0.2s ease;
+}
+
+@keyframes phFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .ph-mobile-drawer {
-  background: #1a4525;
-  width: 72vw;
-  max-width: 290px;
+  background: #132d1a;
+  width: 74vw;
+  max-width: 300px;
   height: 100%;
-  padding: 60px 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  position: relative;
-  overflow-y: auto;
+  overflow: hidden;
+  animation: phSlideIn 0.25s ease;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes phSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.ph-mobile-drawer-header {
+  background: #235630;
+  padding: 16px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #f5c400;
+  flex-shrink: 0;
+}
+
+.ph-mobile-drawer-header span {
+  color: #f5c400;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .ph-mobile-close {
-  position: absolute;
-  top: 12px;
-  right: 14px;
   background: transparent;
   border: none;
   color: white;
-  font-size: 26px;
+  font-size: 22px;
   cursor: pointer;
   line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.ph-mobile-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ph-mobile-nav-label {
+  padding: 10px 8px 4px;
+  font-size: 10px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
 }
 
 .ph-mobile-nav-btn {
   width: 100%;
   padding: 13px 16px;
-  background: #2f6f3a;
-  border: 2px solid #f5c400;
+  background: rgba(47, 111, 58, 0.45);
+  border: 1px solid rgba(245, 196, 0, 0.25);
   border-radius: 10px;
   color: white;
   font-size: 15px;
   font-weight: bold;
   cursor: pointer;
   text-align: left;
+  transition: background 0.15s;
+}
+
+.ph-mobile-nav-btn:active {
+  background: rgba(47, 111, 58, 0.8);
 }
 
 .ph-mobile-nav-btn-active {
-  background: #3d8a4a;
-  border-color: #f5c400;
+  background: #f5c400 !important;
+  color: #132d1a !important;
+  border-color: #f5c400 !important;
 }
 
 .ph-mobile-nav-separator {
   height: 1px;
-  background: rgba(245, 196, 0, 0.25);
+  background: rgba(245, 196, 0, 0.15);
   margin: 4px 0;
 }
 
 .ph-mobile-nav-btn-danger {
-  background: transparent !important;
-  border-color: rgba(245, 196, 0, 0.4) !important;
-  color: #f5c400 !important;
+  background: rgba(180, 0, 0, 0.18) !important;
+  border-color: rgba(255, 100, 100, 0.35) !important;
+  color: #ff9090 !important;
 }
 
 /* ===================== PANEL RESPONSIVE CONTENT ===================== */
