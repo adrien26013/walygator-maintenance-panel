@@ -16,9 +16,11 @@ import {
 } from "firebase/firestore";
 
 import { signOut } from "firebase/auth";
+import MobileNavDrawer from "../../components/MobileNavDrawer";
 
 export default function Dashboard({ setSelectedDateGlobal }) {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [dateFrom, setDateFrom] = useState(null);
@@ -321,6 +323,23 @@ const handleSaveMaintenance = async () => {
 
   return (
     <div style={{ position: "relative" }}>
+      {mobileMenuOpen && (
+        <MobileNavDrawer
+          onClose={() => setMobileMenuOpen(false)}
+          items={[
+            { label: "Codes secrets", onClick: () => navigate("/codes-secrets") },
+            { label: "Parc mécanique", onClick: () => {}, active: true },
+            { label: "Parc aquatique", onClick: () => navigate("/dashboard-aqua") },
+            { label: "PC Sécurité", onClick: () => navigate("/pc-securite") },
+            "separator",
+            { label: "Vue globale", onClick: () => navigate("/global") },
+            { label: "Opérations", onClick: () => navigate("/operations-meca") },
+            "separator",
+            { label: "Déconnexion", onClick: handleLogout, danger: true },
+          ]}
+        />
+      )}
+
       {/* POPUP NOTIFICATION STYLE WALYGATOR */}
       {notification.show && (
         <div style={{
@@ -373,6 +392,11 @@ const handleSaveMaintenance = async () => {
         </div>
 
         <img src="/logo_walygator_maintenance.png" alt="logo" className="ph-logo" style={{ height: 70 }} />
+
+        {/* Hamburger mobile */}
+        <button className="ph-hamburger" onClick={() => setMobileMenuOpen(true)}>
+          <span /><span /><span />
+        </button>
 
         <div className="ph-right">
           <button

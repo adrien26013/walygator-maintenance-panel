@@ -58,31 +58,118 @@ code {
   gap: 8px;
 }
 
+/* Hamburger — caché sur desktop */
+.ph-hamburger {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .ph-header {
-    height: auto !important;
-    flex-direction: column !important;
-    padding: 8px 6px !important;
-    gap: 6px !important;
+    height: 60px !important;
+    flex-direction: row !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    justify-content: center !important;
   }
 
   .ph-left {
-    position: static !important;
-    left: auto !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
+    display: none !important;
   }
 
   .ph-right {
-    position: static !important;
-    right: auto !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
+    display: none !important;
   }
 
   .ph-logo {
-    height: 40px !important;
+    height: 38px !important;
   }
+
+  .ph-hamburger {
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: none;
+    border: 2px solid #f5c400;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    position: absolute !important;
+    right: 14px;
+  }
+
+  .ph-hamburger span {
+    display: block;
+    width: 22px;
+    height: 3px;
+    background: white;
+    border-radius: 2px;
+  }
+}
+
+/* =================== MOBILE NAV DRAWER =================== */
+.ph-mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ph-mobile-drawer {
+  background: #1a4525;
+  width: 72vw;
+  max-width: 290px;
+  height: 100%;
+  padding: 60px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow-y: auto;
+}
+
+.ph-mobile-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 26px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.ph-mobile-nav-btn {
+  width: 100%;
+  padding: 13px 16px;
+  background: #2f6f3a;
+  border: 2px solid #f5c400;
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ph-mobile-nav-btn-active {
+  background: #3d8a4a;
+  border-color: #f5c400;
+}
+
+.ph-mobile-nav-separator {
+  height: 1px;
+  background: rgba(245, 196, 0, 0.25);
+  margin: 4px 0;
+}
+
+.ph-mobile-nav-btn-danger {
+  background: transparent !important;
+  border-color: rgba(245, 196, 0, 0.4) !important;
+  color: #f5c400 !important;
 }
 
 /* ===================== PANEL RESPONSIVE CONTENT ===================== */
@@ -115,12 +202,7 @@ code {
     width: 100% !important;
   }
 
-  /* Boutons nav plus compacts */
-  .ph-left button,
-  .ph-right button {
-    font-size: 12px !important;
-    padding: 5px 9px !important;
-  }
+
 }
 
 /* ===================== CHECKLIST ITEMS RESPONSIVE ===================== */

@@ -12,9 +12,11 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
+import MobileNavDrawer from "../../components/MobileNavDrawer";
 
 export default function DashboardAqua({ setSelectedDateGlobal }) {
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [journaliere, setJournaliere] = useState([]);
@@ -211,6 +213,23 @@ export default function DashboardAqua({ setSelectedDateGlobal }) {
 
   return (
     <div>
+      {mobileMenuOpen && (
+        <MobileNavDrawer
+          onClose={() => setMobileMenuOpen(false)}
+          items={[
+            { label: "Codes secrets", onClick: () => navigate("/codes-secrets") },
+            { label: "Parc mécanique", onClick: () => navigate("/dashboard") },
+            { label: "Parc aquatique", onClick: () => {}, active: true },
+            { label: "PC Sécurité", onClick: () => navigate("/pc-securite") },
+            "separator",
+            { label: "Vue globale", onClick: () => navigate("/global") },
+            { label: "Opérations", onClick: () => navigate("/operations-aqua") },
+            "separator",
+            { label: "Déconnexion", onClick: () => signOut(auth), danger: true },
+          ]}
+        />
+      )}
+
       {/* 🔝 HEADER AQUA — INCHANGÉ */}
       <div
         className="ph-header"
@@ -281,6 +300,11 @@ export default function DashboardAqua({ setSelectedDateGlobal }) {
           className="ph-logo"
           style={{ height: 70 }}
         />
+
+        {/* Hamburger mobile */}
+        <button className="ph-hamburger" onClick={() => setMobileMenuOpen(true)}>
+          <span /><span /><span />
+        </button>
 
         <div className="ph-right" style={{ gap: 14 }}>
           <button
