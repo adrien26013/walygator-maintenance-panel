@@ -1,16 +1,53 @@
-import React from "react";
+import React, { useState } from "react";
 
 /* =========================
-   🎨 STYLES BOUTONS
+   🎨 STYLES
    ========================= */
 
+const overlayStyle = {
+  position: "fixed",
+  inset: 0,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 999,
+};
+
+const modalStyle = {
+  backgroundColor: "white",
+  borderRadius: 14,
+  padding: 24,
+  width: 420,
+  boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+  fontFamily: "inherit",
+};
+
+const modalTitle = {
+  fontSize: 18,
+  fontWeight: 900,
+  marginBottom: 10,
+  color: "#235630",
+};
+
+const modalText = {
+  fontSize: 14,
+  marginBottom: 20,
+};
+
+const modalActions = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 10,
+};
+
 const btnBase = {
-  padding: "6px 12px",
+  padding: "8px 14px",
   borderRadius: 8,
   border: "2px solid #235630",
   fontWeight: "bold",
   cursor: "pointer",
-  fontSize: 13,
+  fontSize: 14,
 };
 
 const btnPrimary = {
@@ -32,36 +69,50 @@ const btnDanger = {
   color: "white",
 };
 
+/* =========================
+   🧾 COMPONENT
+   ========================= */
+
 export default function ChecklistList({
   title,
   checklists = [],
   onDelete,
 }) {
+  const [toDelete, setToDelete] = useState(null);
 
-  // 🔧 crazy_bus → Crazy Bus
+  /* =========================
+     🔧 HELPERS
+     ========================= */
+
   const formatAttraction = (name) => {
     if (!name) return "Attraction inconnue";
-
     return String(name)
       .trim()
       .replace(/_/g, " ")
       .split(" ")
       .filter(Boolean)
-      .map(
-        (word) => word.charAt(0).toUpperCase() + word.slice(1)
-      )
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
   };
 
   const getAttractionName = (c) => {
-    if (Array.isArray(c.attractions) && c.attractions.length > 0) {
-      return c.attractions[0];
-    }
-    if (typeof c.attraction === "string" && c.attraction.trim() !== "") {
-      return c.attraction;
-    }
-    return null;
-  };
+  // ✅ PRIORITÉ AU GROUPE (nouvelle logique Aqua)
+  if (typeof c.groupe === "string" && c.groupe.trim() !== "") {
+    return c.groupe;
+  }
+
+  // 🔁 fallback ancien système
+  if (Array.isArray(c.attractions) && c.attractions.length > 0) {
+    return c.attractions[0];
+  }
+
+  if (typeof c.attraction === "string" && c.attraction.trim() !== "") {
+    return c.attraction;
+  }
+
+  return null;
+};
+
 
   const formatDate = (timestamp) => {
     const dateObj = timestamp?.toDate
@@ -70,86 +121,99 @@ export default function ChecklistList({
     return dateObj.toLocaleDateString("fr-FR");
   };
 
+  /* =========================
+     🧩 RENDER
+     ========================= */
+
   return (
     <div style={{ marginTop: 20 }}>
       <h3>{title}</h3>
 
-      {checklists.length === 0 && (
-        <p>Aucune liste de contrôle</p>
-      )}
+      {checklists.length === 0 && <p>Aucune liste de contrôle</p>}
 
       {checklists.map((c) => {
-        const attractionRaw = getAttractionName(c);
-        const attraction = formatAttraction(attractionRaw);
+        const attraction = formatAttraction(getAttractionName(c));
         const date = formatDate(c.timestamp);
+        const baseLabel = `Checklist_${c.type}_${attraction}_${date}`;
 
-        const label = `Checklist_${c.type}_${attraction}_${date}`;
+const label = c.signed === false
+  ? `NON SIGNEE_${baseLabel}`
+  : baseLabel;
 
         return (
-          <div
-            key={c.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 0",
-              borderBottom: "1px solid #e0e0e0",
-            }}
-          >
-            <span style={{ flex: 1, fontWeight: 800 }}>
-              {label}
-            </span>
+          <div key={c.id} className="cl-item">
+            <span className="cl-label">{label}</span>
 
-            {c.pdf_url && (
+            <div className="cl-actions">
+              {/* 👁 VOIR */}
+              {c.pdf_url && (
+                <a href={c.pdf_url} target="_blank" rel="noopener noreferrer">
+                  <button style={btnOutline}>👁 Voir</button>
+                </a>
+              )}
+
+              {/* ⬇ TÉLÉCHARGER */}
+              {c.pdf_url && (
+                <a href={c.pdf_url} download={`${label}.pdf`}>
+                  <button style={btnPrimary}>⬇ Télécharger</button>
+                </a>
+              )}
+
+              {/* 🖨 IMPRIMER */}
+              {c.pdf_url && (
+                <a href={c.pdf_url} target="_blank" rel="noopener noreferrer">
+                  <button style={btnOutline}>🖨 Imprimer</button>
+                </a>
+              )}
+
+              {/* 🗑 SUPPRIMER */}
               <button
-                style={btnOutline}
-                onClick={() => window.open(c.pdf_url, "_blank")}
+                style={btnDanger}
+                onClick={() => setToDelete({ checklist: c, label })}
               >
-                👁 Voir
+                🗑 Supprimer
               </button>
-            )}
-
-            {c.pdf_url && (
-              <button
-                style={btnPrimary}
-                onClick={async () => {
-                  const response = await fetch(c.pdf_url);
-                  const blob = await response.blob();
-                  const url = URL.createObjectURL(blob);
-
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `${label}.pdf`;
-                  a.click();
-
-                  URL.revokeObjectURL(url);
-                }}
-              >
-                ⬇ Télécharger
-              </button>
-            )}
-
-            {c.pdf_url && (
-              <button
-                style={btnOutline}
-                onClick={() => {
-                  const win = window.open(c.pdf_url, "_blank");
-                  win.onload = () => win.print();
-                }}
-              >
-                🖨 Imprimer
-              </button>
-            )}
-
-            <button
-              style={btnDanger}
-              onClick={() => onDelete?.(c)}
-            >
-              🗑 Supprimer
-            </button>
+            </div>
           </div>
         );
       })}
+
+      {/* =========================
+          🟥 MODAL CONFIRMATION
+          ========================= */}
+
+      {toDelete && (
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <div style={modalTitle}>Suppression définitive</div>
+
+            <div style={modalText}>
+              Êtes-vous sûr de vouloir supprimer cette checklist ?
+              <br />
+              <strong>{toDelete.label}</strong>
+            </div>
+
+            <div style={modalActions}>
+              <button
+                style={btnOutline}
+                onClick={() => setToDelete(null)}
+              >
+                Annuler
+              </button>
+
+              <button
+                style={btnDanger}
+                onClick={() => {
+                  onDelete?.(toDelete.checklist);
+                  setToDelete(null);
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

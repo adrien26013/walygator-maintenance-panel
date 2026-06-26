@@ -114,4 +114,55 @@ code {
   .ph-col-right {
     width: 100% !important;
   }
+
+  /* Boutons nav plus compacts */
+  .ph-left button,
+  .ph-right button {
+    font-size: 12px !important;
+    padding: 5px 9px !important;
+  }
+}
+
+/* ===================== CHECKLIST ITEMS RESPONSIVE ===================== */
+.cl-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.cl-label {
+  flex: 1;
+  font-weight: 800;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.cl-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .cl-item {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .cl-label {
+    width: 100% !important;
+    flex: unset !important;
+  }
+
+  .cl-actions {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  .cl-actions button {
+    font-size: 12px !important;
+    padding: 5px 9px !important;
+  }
 }
